@@ -75,6 +75,9 @@ class ParticleSystem:
     def pack_v_current(self):
         return np.array([particle.v for particle in self.__particles]).flatten()
 
+    def pack_x_current(self):
+        return np.array([particle.x for particle in self.__particles]).flatten()
+
     def one_d_force_vector(self):
         self.__f[self.__f != 0] = 0
 
@@ -91,7 +94,7 @@ class ParticleSystem:
         j = 1
         for springdamper in self.__springdampers:
             jx = springdamper.calculate_jacobian()
-            print(springdamper)
+            # print(springdamper)
 
             self.__j[i*3:i*3+3, i*3:i*3+3] += jx
             self.__j[j*3:j*3+3, j*3:j*3+3] += jx
@@ -102,6 +105,11 @@ class ParticleSystem:
             j += 1
         return self.__j
 
+    def update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
+        for i in range(self.__n):
+            self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
+            self.__particles[i].update_vel(v_next[i * 3:i * 3 + 3])
+        return
 
 if __name__ == "__main__":
     c_matrix = [[0, 1], [1, 0]]
