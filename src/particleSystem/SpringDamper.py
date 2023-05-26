@@ -65,7 +65,7 @@ class SpringDamper(ImplicitForce):
         # from Python v1
         i = np.identity(3)
         T = np.matmul(np.transpose(unit_vector), unit_vector)
-        jx = self.__k * ((self.__l0 / norm_pos - 1) * (T - i) + T)       # R. Leuthold
+        jx = -self.__k * ((self.__l0 / norm_pos - 1) * (T - i) + T)       # R. Leuthold
 
         return jx
 
