@@ -1,5 +1,5 @@
 """
-Input file for verification of correct implementation spring force, by modeling undamped harmonic oscillator
+Input file for verification of correct implementation damping force, by modeling damped harmonic oscillator
 """
 import numpy as np
 
@@ -19,6 +19,7 @@ params = {
     # model parameters
     "n": 2,                         # [-] number of particles
     "k": 1e3,                       # [n/m] spring stiffness
+    "c": 10,                        # [] damping coefficient
     "L": 0,                         # [m] tether length
 
     # simulation settings

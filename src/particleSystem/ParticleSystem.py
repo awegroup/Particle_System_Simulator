@@ -22,13 +22,16 @@ class ParticleSystem:
         self.__connectivity_matrix = np.array(connectivity_matrix)
         self.__k = sim_param["k"]
         self.__l0 = sim_param["l0"]
+        self.__c = sim_param["c"]
         self.__dt = sim_param["dt"]
         self.__n = sim_param["n"]
 
+        # allocate memory
         self.__particles = []
         self.__springdampers = []
         self.__f = np.zeros((self.__n * 3, ))
-        self.__j = np.zeros((self.__n * 3, self.__n * 3))
+        self.__jx = np.zeros((self.__n * 3, self.__n * 3))
+        self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
         self.__instantiate_particles(initial_conditions)
         self.__instantiate_springdampers()
@@ -61,7 +64,7 @@ class ParticleSystem:
         b = np.column_stack((b[0], b[1]))
         for index in b:
             self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]],
-                                        self.__k, self.__l0, self.__dt))
+                                        self.__k, self.__l0, self.__c, self.__dt))
         return
 
     def m_matrix(self):
@@ -82,34 +85,48 @@ class ParticleSystem:
         self.__f[self.__f != 0] = 0
 
         for i in range(self.__n - 1):
-            fs = self.__springdampers[i].force_value()
-            self.__f[i*3: i*3 + 3] += fs
-            self.__f[(i + 1)*3: (i + 1)*3 + 3] -= fs
+            fs, fd = self.__springdampers[i].force_value()
+            self.__f[i*3: i*3 + 3] += fs + fd
+            self.__f[(i + 1)*3: (i + 1)*3 + 3] -= fs + fd
 
         return self.__f
 
-    def system_jacobian(self):
-        self.__j[self.__j != 0] = 0
+    def system_jacobians(self):
+        self.__jx[self.__jx != 0] = 0
+        self.__jv[self.__jv != 0] = 0
+
         i = 0
         j = 1
         for springdamper in self.__springdampers:
-            jx = springdamper.calculate_jacobian()
+            jx, jv = springdamper.calculate_jacobian()
             # print(springdamper)
 
-            self.__j[i*3:i*3+3, i*3:i*3+3] += jx
-            self.__j[j*3:j*3+3, j*3:j*3+3] += jx
-            self.__j[i*3:i*3+3, j*3:j*3+3] -= jx
-            self.__j[j*3:j*3+3, i*3:i*3+3] -= jx
+            # self.__jx[i*3:i*3+3, i*3:i*3+3] += jx
+            # self.__jx[j*3:j*3+3, j*3:j*3+3] += jx
+            # self.__jx[i*3:i*3+3, j*3:j*3+3] -= jx
+            # self.__jx[j*3:j*3+3, i*3:i*3+3] -= jx
+
+            self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
+            self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
+            self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jx
+            self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jx
+
+            self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jv
+            self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jv
+            self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jv
+            self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
 
             i += 1
             j += 1
-        return self.__j
+
+        return self.__jx, self.__jv
 
     def update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
         for i in range(self.__n):
             self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
             self.__particles[i].update_vel(v_next[i * 3:i * 3 + 3])
         return
+
 
 if __name__ == "__main__":
     c_matrix = [[0, 1], [1, 0]]

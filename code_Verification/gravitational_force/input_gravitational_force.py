@@ -1,5 +1,5 @@
 """
-Input file for verification of correct implementation spring force, by modeling undamped harmonic oscillator
+Input file for verification of correct implementation gravitational force, by modeling free-falling particles
 """
 import numpy as np
 
@@ -10,7 +10,7 @@ def connectivity_matrix():
 
 
 def initial_conditions():
-    conditions = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 1], [0, 0, 0], 1, False]]
+    conditions = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 0], [0, 0, 0], 1, False]]
     return conditions
 
 
@@ -18,17 +18,18 @@ def initial_conditions():
 params = {
     # model parameters
     "n": 2,                         # [-] number of particles
-    "k": 1e3,                       # [n/m] spring stiffness
+    "k": 0,                       # [n/m] spring stiffness
     "L": 0,                         # [m] tether length
 
     # simulation settings
-    "dt": 0.001,                    # [s] simulation timestep
-    "t_steps": 1000,                # [-] number of simulated time steps
+    "dt": 0.1,                    # [s] simulation timestep
+    "t_steps": 100,                # [-] number of simulated time steps
     "abs_tol": 1e-50,               # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-] relative error tolerance iterative solver
     "max_iter": 1e5,                # [-] maximum number of iterations
 
     # physical parameters
+    "g": 9.807                      # [m/s^2] gravitational acceleration
 
 }
 # calculated parameters
