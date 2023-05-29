@@ -117,13 +117,13 @@ if __name__ == "__main__":
 
 
     """
-    Notes for self: Try to plot decay rate and clean up code before committing and sending. 
-                    Add clause for (zero) spring rest length to SpringDamper
+    Notes for self: Longitudal oscillations benchmark analytical sol.
+                    Make sure every verification runs w/o error and clean up before committing and sending. 
                     Check verification gravitational force
                     Make function for system energy
-                    Make plot gravity abs. and rel. error
+                    Make plot gravity verification abs. and rel. error
+                    Make plot for internal force values
                     
-    today: cleanup of code, 
-           added automated result generation, estimated decay and phase shift, gravitational force, damping force
+    today:          Started work on long. oscillations benchmark
            
     """

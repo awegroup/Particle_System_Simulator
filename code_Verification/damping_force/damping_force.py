@@ -11,7 +11,6 @@ from scipy.integrate import solve_ivp
 
 # adjusting directory where modules are imported from
 import sys
-
 sys.path.insert(1, sys.path[0][:-31] + 'src/ParticleSystem')
 from ParticleSystem import ParticleSystem
 
@@ -55,7 +54,7 @@ def exact_solution():
     gamma = c/m
     zeta = c/(2 * omega)        # critical damping faction
 
-    # exact solution depends on value of zeta
+    # Analytical solution depends on value of zeta
     if zeta <1:
         print("system is underdamped")
     elif zeta == 1:
@@ -104,9 +103,6 @@ def plot(psystem: ParticleSystem):
         position.loc[step], velocity.loc[step] = simulate(psystem)
 
     t, exact, decay = exact_solution()
-    print(position["x"])
-    print()
-    print(len(position["x"]), len(decay[1:]))
 
     corrected = numpy.divide(np.array(position["x"]), decay[1:])
 

@@ -18,8 +18,8 @@ def initial_conditions():
 params = {
     # model parameters
     "n": 2,                         # [-] number of particles
-    "k": 1e3,                       # [n/m] spring stiffness
-    "c": 10,                        # [] damping coefficient
+    "k": 1e3,                       # [N/m] spring stiffness
+    "c": 2*1000**0.5,                        # [N s/m] damping coefficient
     "L": 0,                         # [m] tether length
 
     # simulation settings
