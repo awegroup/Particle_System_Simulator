@@ -1,52 +1,22 @@
 """
 Script for verification of correct implementation spring force of SpringDamper object within ParticleSystem framework
 """
-import numpy
 import numpy as np
-from scipy.sparse.linalg import bicgstab
+import numpy.typing as npt
 import input_damping_force as input
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.integrate import solve_ivp
 
-# adjusting directory where modules are imported from
 import sys
-sys.path.insert(1, sys.path[0][:-31] + 'src/ParticleSystem')
-from ParticleSystem import ParticleSystem
+from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
 
 def instantiate_ps():
     return ParticleSystem(input.c_matrix, input.init_cond, input.params)
 
 
-def simulate(psystem: ParticleSystem):  # propagates simulation one timestep
-    dt = input.params["dt"]
-    rtol = input.params["rel_tol"]
-    atol = input.params["abs_tol"]
-    maxiter = input.params["max_iter"]
-
-    mass_matrix = psystem.m_matrix()
-    f = psystem.one_d_force_vector()
-    v_current = psystem.pack_v_current()
-    x_current = psystem.pack_x_current()
-
-    jx, jv = psystem.system_jacobians()
-
-    # constructing A matrix and b vector for solver
-    A = mass_matrix - dt * jv - dt ** 2 * jx
-    b = dt * f + dt ** 2 * np.matmul(jx, v_current)
-
-    # BiCGSTAB from scipy library
-    dv, _ = bicgstab(A, b, tol=rtol, atol=atol, maxiter=maxiter)
-    v_next = v_current + dv
-    x_next = x_current + dt * v_next
-
-    psystem.update_x_v(x_next, v_next)
-
-    return x_next[-1], v_next[-1]
-
-
-def exact_solution():
+def exact_solution(t_vector: npt.ArrayLike):
     k = input.params["k"]
     c = input.params["c"]
     m = input.init_cond[1][-2]
@@ -70,8 +40,6 @@ def exact_solution():
         system = np.matmul(A, y)
         return system
 
-    t_vector = np.linspace(0, input.params["t_steps"] * input.params["dt"], input.params["t_steps"] + 1)
-
     t_int = [t_vector[0], t_vector[-1]]
     ivp_solution = solve_ivp(syst_of_diff_eq, t_int, y0=y0, t_eval=t_vector)
 
@@ -85,32 +53,39 @@ def exact_solution():
     dt = input.params['dt']
     decay = np.exp(-0.5 * omega ** 2 * dt * t_vector)
 
-    return t_vector, ivp_solution, decay
+    return ivp_solution, decay
 
 
-def plot(psystem: ParticleSystem):
-    t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
+def plot(psystem: ParticleSystem):          # visualization of simulation and analytical results
+
+    # time vector for simulation loop, data storage and plotting
+    t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"] + 1)
+
+    # DataFrames as storage method of choice
     x = {"x": np.zeros(len(t_vector), )}
     v = {"v": np.zeros(len(t_vector), )}
-
     position = pd.DataFrame(index=t_vector, columns=x)
     velocity = pd.DataFrame(index=t_vector, columns=v)
 
-    position.iloc[0] = input.init_cond[1][0][-1]
-    velocity.iloc[0] = input.init_cond[1][1][-1]
+    # addition of (constant) external forces
+    f_ext = np.zeros(input.params['n'] * 3, )
 
-    for step in t_vector:
-        position.loc[step], velocity.loc[step] = simulate(psystem)
+    for step in t_vector:          # propagating the simulation for each timestep and saving results
+        x_next, v_next = psystem.simulate(f_ext)
+        print(x_next)
+        position.loc[step], velocity.loc[step] = x_next[-1], v_next[-1]
 
-    t, exact, decay = exact_solution()
+    # generating analytical solution for the same time vector
+    exact, decay = exact_solution(t_vector)
 
-    corrected = numpy.divide(np.array(position["x"]), decay[1:])
+    # correcting simulation for decay rate
+    corrected = np.divide(np.array(position["x"]), decay)
 
     # graph configuration
     position.plot()
-    plt.plot(t, exact.y[0])
-    plt.plot(t, decay)
-    plt.plot(t[1:], corrected)
+    plt.plot(t_vector, exact.y[0])
+    plt.plot(t_vector, decay)
+    plt.plot(t_vector, corrected)
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Verification PS damping force implementation with Implicit Euler scheme")
@@ -121,8 +96,9 @@ def plot(psystem: ParticleSystem):
     figure = plt.gcf()
     figure.set_size_inches(8.3, 5.8)  # set window to size of a3 paper
 
-    file_path = sys.path[0][:-31] + "code_Verification/verification_results/damping_force/"
-    img_name = f"{input.params['n']}Particles-{input.params['k']}stiffness-{input.params['c']}dampingC-" \
+    # Not sure if this is the smartest way to automate saving results relative to other users directories
+    file_path = sys.path[1] + "/Msc_Alexander_Batchelor/code_Verification/verification_results/damping_force/"
+    img_name = f"{input.params['n']}Particles-{input.params['k']}stiffness-{input.params['c']:.3f}dampingC-" \
                f"{input.params['dt']}timestep.jpeg"
     plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
 
@@ -135,11 +111,3 @@ if __name__ == "__main__":
     ps = instantiate_ps()
 
     plot(ps)
-
-    """
-    Notes for self: Try to plot decay rate and clean up code before committing and sending. 
-                    Add clause for (zero) spring rest length to SpringDamper
-
-    today: cleanup code, 
-           added automated result generation, estimated decay and phase shift, gravitational force?
-    """

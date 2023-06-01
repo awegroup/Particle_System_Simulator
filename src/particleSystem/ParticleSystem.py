@@ -1,10 +1,12 @@
 """
+ParticleSystem framework
 ...
 """
 import numpy as np
 import numpy.typing as npt
-from Particle import Particle
-from SpringDamper import SpringDamper
+from Msc_Alexander_Batchelor.src.particleSystem.Particle import Particle
+from Msc_Alexander_Batchelor.src.particleSystem.SpringDamper import SpringDamper
+from scipy.sparse.linalg import bicgstab
 
 
 class ParticleSystem:
@@ -26,6 +28,10 @@ class ParticleSystem:
         self.__dt = sim_param["dt"]
         self.__n = sim_param["n"]
 
+        self.__rtol = sim_param["rel_tol"]
+        self.__atol = sim_param["abs_tol"]
+        self.__maxiter = sim_param["max_iter"]
+
         # allocate memory
         self.__particles = []
         self.__springdampers = []
@@ -34,6 +40,7 @@ class ParticleSystem:
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
         self.__instantiate_particles(initial_conditions)
+        self.__m_matrix = self.__construct_m_matrix()
         self.__instantiate_springdampers()
         return
 
@@ -67,7 +74,7 @@ class ParticleSystem:
                                         self.__k, self.__l0, self.__c, self.__dt))
         return
 
-    def m_matrix(self):
+    def __construct_m_matrix(self):
         matrix = np.zeros((self.__n * 3, self.__n * 3))
 
         for i in range(self.__n):
@@ -75,13 +82,33 @@ class ParticleSystem:
 
         return matrix
 
-    def pack_v_current(self):
+    def simulate(self, f_external: npt.ArrayLike):
+        f = self.__one_d_force_vector() + f_external
+        v_current = self.__pack_v_current()
+        x_current = self.__pack_x_current()
+
+        jx, jv = self.__system_jacobians()
+
+        # constructing A matrix and b vector for solver
+        A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
+        b = self.__dt * f + self.__dt ** 2 * np.matmul(jx, v_current)
+
+        # BiCGSTAB from scipy library
+        dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
+        v_next = v_current + dv
+        x_next = x_current + self.__dt * v_next
+
+        # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
+        self.__update_x_v(x_next, v_next)
+        return x_next, v_next
+
+    def __pack_v_current(self):
         return np.array([particle.v for particle in self.__particles]).flatten()
 
-    def pack_x_current(self):
+    def __pack_x_current(self):
         return np.array([particle.x for particle in self.__particles]).flatten()
 
-    def one_d_force_vector(self):
+    def __one_d_force_vector(self):
         self.__f[self.__f != 0] = 0
 
         for i in range(self.__n - 1):
@@ -91,7 +118,7 @@ class ParticleSystem:
 
         return self.__f
 
-    def system_jacobians(self):
+    def __system_jacobians(self):
         self.__jx[self.__jx != 0] = 0
         self.__jv[self.__jv != 0] = 0
 
@@ -121,7 +148,7 @@ class ParticleSystem:
 
         return self.__jx, self.__jv
 
-    def update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
+    def __update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
         for i in range(self.__n):
             self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
             self.__particles[i].update_vel(v_next[i * 3:i * 3 + 3])
@@ -129,8 +156,28 @@ class ParticleSystem:
 
 
 if __name__ == "__main__":
+
     c_matrix = [[0, 1], [1, 0]]
     init_cond = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 0], [0, 0, 0], 1, False]]
-    ps = ParticleSystem(c_matrix, init_cond)
+
+    params = {
+        # model parameters
+        "n": 2,  # [-] number of particles
+        "k": 2e4,  # [N/m] spring stiffness
+        "c": 0,  # [N s/m] damping coefficient
+        "l0": 0,  # [m] rest length
+
+        # simulation settings
+        "dt": 0.001,  # [s] simulation timestep
+        "t_steps": 1000,  # [-] number of simulated time steps
+        "abs_tol": 1e-50,  # [m/s] absolute error tolerance iterative solver
+        "rel_tol": 1e-5,  # [-] relative error tolerance iterative solver
+        "max_iter": 1e5,  # [-] maximum number of iterations
+
+        # physical parameters
+
+    }
+
+    ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
     pass

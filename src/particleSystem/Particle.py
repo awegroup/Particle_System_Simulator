@@ -1,7 +1,7 @@
 """
 Child Class 'Particle', for particle objects to be instantiated in ParticleSystem
 """
-from SystemObject import SystemObject
+from Msc_Alexander_Batchelor.src.particleSystem.SystemObject import SystemObject
 import numpy as np
 import numpy.typing as npt
 

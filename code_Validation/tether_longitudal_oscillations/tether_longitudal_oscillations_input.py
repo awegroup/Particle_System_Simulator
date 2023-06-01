@@ -28,7 +28,7 @@ params = {
 
     # simulation settings
     "dt": 0.001,                    # [s] simulation timestep
-    "t_steps": 30000,                # [-] number of simulated time steps
+    "t_steps": 1000,                # [-] number of simulated time steps
     "abs_tol": 1e-50,               # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-] relative error tolerance iterative solver
     "max_iter": 1e5,                # [-] maximum number of iterations
@@ -45,3 +45,4 @@ params["k"] = params["k"] * (params["n"] - 1)           # segment stiffness
 c_matrix = connectivity_matrix(params['n'])
 init_cond = initial_conditions(params["l0"], params["n"], params["m_segment"], params["m_block"])
 
+# print(init_cond)
