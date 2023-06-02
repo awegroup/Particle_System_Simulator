@@ -66,7 +66,7 @@ def plot(psystem: ParticleSystem):
 
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext)
-    print(position)
+
     # generating analytical solution for the same time vector
     # exact, decay = exact_solution(t_vector)
 

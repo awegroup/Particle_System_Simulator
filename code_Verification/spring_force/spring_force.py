@@ -91,16 +91,3 @@ if __name__ == "__main__":
     ps = instantiate_ps()
 
     plot(ps)
-
-
-    """
-    Notes for self: Longitudal oscillations benchmark analytical sol.
-                    Make sure every verification runs w/o error and clean up before committing and sending. 
-                    Check verification gravitational force
-                    Make function for system energy
-                    Make plot gravity verification abs. and rel. error
-                    Make plot for internal force values
-                    
-    today:          
-           
-    """

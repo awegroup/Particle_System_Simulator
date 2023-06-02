@@ -10,7 +10,6 @@ from scipy.sparse.linalg import bicgstab
 
 
 class ParticleSystem:
-
     def __init__(self, connectivity_matrix: npt.ArrayLike, initial_conditions: npt.ArrayLike,
                  sim_param: dict):
         """
@@ -82,7 +81,9 @@ class ParticleSystem:
 
         return matrix
 
-    def simulate(self, f_external: npt.ArrayLike):
+    def simulate(self, f_external: npt.ArrayLike = False):
+        if not f_external.any():
+            f_external = np.zeros(self.__n * 3, )
         f = self.__one_d_force_vector() + f_external
         v_current = self.__pack_v_current()
         x_current = self.__pack_x_current()
@@ -153,6 +154,10 @@ class ParticleSystem:
             self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
             self.__particles[i].update_vel(v_next[i * 3:i * 3 + 3])
         return
+
+    @property
+    def particles(self):            # Temporary solution to calculate external aerodynamic forces
+        return self.__particles
 
 
 if __name__ == "__main__":

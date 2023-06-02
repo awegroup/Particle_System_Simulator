@@ -72,7 +72,6 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
 
     for step in t_vector:          # propagating the simulation for each timestep and saving results
         x_next, v_next = psystem.simulate(f_ext)
-        print(x_next)
         position.loc[step], velocity.loc[step] = x_next[-1], v_next[-1]
 
     # generating analytical solution for the same time vector
