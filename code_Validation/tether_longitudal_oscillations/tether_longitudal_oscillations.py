@@ -20,11 +20,19 @@ def exact_solution(t_vector: npt.ArrayLike):
     k = input.params["k"]
     c = input.params["c"]
     n = input.params["n"]
+    g = input.params["g"]
     m = [input.init_cond[i][-2] for i in range(n)]
 
-    omega = np.sqrt(k / m)
-    dx = 0
-    exact_x = [np.ones(len(t_vector)) * dx[i] for i in range(n)]
+    omega = np.sqrt(k / np.sum(m))
+
+    # construct DataFrame with length of t_vector to store steady state particle displacement (x" = 0, x' = 0)
+    x = {f"steady_state_p{i + 1}": np.zeros(len(t_vector)) for i in range(n - 1)}
+    exact_x = pd.DataFrame(index=t_vector, columns=x)
+
+    steady_state_displacement = np.array([np.sum(m[i + 1:]) * -g / (k / (i + 1)) for i in range(n - 1)])
+
+    for step in t_vector:
+        exact_x.loc[step] = steady_state_displacement
 
     # Estimated (expected) decay rate of implicit Euler scheme as a function of t
     dt = input.params['dt']
@@ -32,7 +40,7 @@ def exact_solution(t_vector: npt.ArrayLike):
 
     zeta = c/(2 * omega)        # critical damping faction
 
-    # Analytical solution depends on value of zeta
+    # (Estimated) system damping, based on
     if zeta <1:
         print("system is underdamped")
     elif zeta == 1:
@@ -62,23 +70,27 @@ def plot(psystem: ParticleSystem):
 
     g = input.params["g"]
     n = input.params["n"]
-    f_ext = np.array([[0, 0, -g] for i in range(n)]).flatten()
+
+    m = [input.init_cond[i][-2] for i in range(n)]
+    f_ext = np.array([[0, 0, -g * m[i]] for i in range(n)]).flatten()
 
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext)
 
     # generating analytical solution for the same time vector
-    # exact, decay = exact_solution(t_vector)
+    exact, decay = exact_solution(t_vector)
 
     # plotting & graph configuration
-    for i in range(n):
+    for i in range(1, n):
         position[f"z{i + 1}"] -= input.init_cond[i][0][-1]
         position[f"z{i + 1}"].plot()
-    # plt.plot(t, exact)
+
+    plt.plot(t_vector, exact)
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Validation PS framework, longitudal oscillations of particles with Implicit Euler scheme")
-    plt.legend([f"displacement particle {i + 1}" for i in range(n)])
+    plt.legend([f"displacement particle {i + 2}" for i in range(n - 1)] +
+               [f"Analytical steady state pos. particle {i + 2}" for i in range(n - 1)])
     plt.grid()
 
     # saving resulting figure
