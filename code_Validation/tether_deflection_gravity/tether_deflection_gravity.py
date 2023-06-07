@@ -62,32 +62,17 @@ def generate_animation(pos, n: int, t: npt.ArrayLike):
         return
 
 
-def exact_solution(t_vector: npt.ArrayLike):
-    # analytical steady state solution for particles position
-    k = input.params["k"]
-    c = input.params["c"]
-    n = input.params["n"]
-    m = [input.init_cond[i][-2] for i in range(n)]
+def analytical_solution(sag: float):
+    # catenary line equation analytical solution
 
-    omega = np.sqrt(k / m)
-    dx = 0
-    exact_x = [np.ones(len(t_vector)) * dx[i] for i in range(n)]
+    L = input.params['L']
+    h = abs(sag)
+    a = (0.25 * L**2 - h**2)/(2*h)
+    x = np.linspace(0, L, 1000)
+    y = a*np.cosh((x-0.5*L)/a)      # included shift of curve 0.5*L to the right
+    y -= y[0]                       # adjust height
 
-    # Estimated (expected) decay rate of implicit Euler scheme as a function of t
-    dt = input.params['dt']
-    decay = np.exp(-0.5 * omega ** 2 * dt * t_vector)
-
-    zeta = c/(2 * omega)        # critical damping faction
-
-    # Analytical solution depends on value of zeta
-    if zeta <1:
-        print("system is underdamped")
-    elif zeta == 1:
-        print("system is critically damped")
-    else:
-        print("system is overdamped")
-
-    return exact_x, decay
+    return x, y
 
 
 def plot(psystem: ParticleSystem):
@@ -115,11 +100,11 @@ def plot(psystem: ParticleSystem):
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext)
 
     # generate animation of results, requires smarter configuration to make usable on other PCs
-    generate_animation(position, n, t_vector)   # messes up following plot
+    # generate_animation(position, n, t_vector)
 
     # generating analytical solution for the same time vector
-    # exact, decay = exact_solution(t_vector)
-
+    x, y = analytical_solution(min(position.iloc[-1]))
+    plt.figure(0)
     # plotting & graph configuration
     for i in range(n):
         position[f"z{i + 1}"].plot()
@@ -141,6 +126,18 @@ def plot(psystem: ParticleSystem):
                f"{input.params['dt']}timestep-{input.params['t_steps']}steps.jpeg"
     plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
 
+    # plot of end state simulation vs analytical solution
+    plt.figure(1)
+    simx = []
+    simy = []
+    for i in range(n):
+        simx.append(position[f"x{i + 1}"].iloc[-1])
+        simy.append(position[f"z{i + 1}"].iloc[-1])
+
+    plt.plot(simx, simy, lw=2)
+    plt.plot(x, y)
+    plt.grid()
+    plt.legend(["Simulation final state particles", "Calculated catenary line"])
     plt.show()
 
     return
@@ -150,3 +147,4 @@ if __name__ == "__main__":
     ps = instantiate_ps()
 
     plot(ps)
+

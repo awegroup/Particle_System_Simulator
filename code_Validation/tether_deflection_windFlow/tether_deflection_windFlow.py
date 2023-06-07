@@ -131,7 +131,7 @@ def plot(psystem: ParticleSystem):
 
     g = input.params["g"]
     n = input.params["n"]
-    f_ext = np.array([[0, 0, -g] for i in range(n)]).flatten()
+    f_ext = np.array([[0, 0, 0] for i in range(n)]).flatten()
 
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         f_aero = calculate_f_a(ps)

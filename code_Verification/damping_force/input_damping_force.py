@@ -19,7 +19,8 @@ params = {
     # model parameters
     "n": 2,                         # [-] number of particles
     "k": 1e3,                       # [N/m] spring stiffness
-    "c": 2*1000**0.5,                        # [N s/m] damping coefficient
+    # "c": 2*1000**0.5,               # [N s/m] critical damping coefficient (2 * sqrt(k/m))
+    "c": 10,                        # [N s/m] damping coefficient
     "L": 0,                         # [m] tether length
 
     # simulation settings
@@ -30,7 +31,7 @@ params = {
     "max_iter": 1e5,                # [-] maximum number of iterations
 
     # physical parameters
-
+    "g": 0                          # [m/s^2] EXCLUDED gravitational acceleration
 }
 # calculated parameters
 params["l0"] = params["L"]/(params["n"]-1)

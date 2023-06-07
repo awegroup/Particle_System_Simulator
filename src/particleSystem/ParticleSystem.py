@@ -94,6 +94,12 @@ class ParticleSystem:
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
         b = self.__dt * f + self.__dt ** 2 * np.matmul(jx, v_current)
 
+        for i in range(self.__n):
+            if self.__particles[i].fixed:
+                A[i * 3: (i + 1) * 3] = 0        # zeroes out row i to i + 3
+                A[:, i * 3: (i + 1) * 3] = 0     # zeroes out column i to i + 3
+                b[i * 3: (i + 1) * 3] = 0        # zeroes out row i
+
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
         v_next = v_current + dv
@@ -127,12 +133,6 @@ class ParticleSystem:
         j = 1
         for springdamper in self.__springdampers:
             jx, jv = springdamper.calculate_jacobian()
-            # print(springdamper)
-
-            # self.__jx[i*3:i*3+3, i*3:i*3+3] += jx
-            # self.__jx[j*3:j*3+3, j*3:j*3+3] += jx
-            # self.__jx[i*3:i*3+3, j*3:j*3+3] -= jx
-            # self.__jx[j*3:j*3+3, i*3:i*3+3] -= jx
 
             self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
             self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
@@ -158,6 +158,10 @@ class ParticleSystem:
     @property
     def particles(self):            # Temporary solution to calculate external aerodynamic forces
         return self.__particles
+
+    @property
+    def springdampers(self):
+        return self.__springdampers
 
 
 if __name__ == "__main__":
