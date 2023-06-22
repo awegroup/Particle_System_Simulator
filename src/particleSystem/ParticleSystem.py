@@ -163,6 +163,10 @@ class ParticleSystem:
     def springdampers(self):
         return self.__springdampers
 
+    @property
+    def stiffness_m(self):
+        self.__system_jacobians()
+        return self.__jx
 
 if __name__ == "__main__":
 

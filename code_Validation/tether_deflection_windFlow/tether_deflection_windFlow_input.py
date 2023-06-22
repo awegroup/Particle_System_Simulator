@@ -18,8 +18,8 @@ def initial_conditions(l0: float, n: int, m_segment: float):
 # dictionary of required parameters
 params = {
     # model parameters
-    "n": 6,                         # [-]       number of particles
-    "k": 1e3,                       # [N/m]     spring stiffness
+    "n": 3,                         # [-]       number of particles
+    "k_t": 1e3,                # [N/m]     spring stiffness
     "c": 100,                         # [N s/m] damping coefficient
     "L": 10,                        # [m]       tether length
     "m_block": 100,                  # [kg]     mass attached to end of tether
@@ -42,7 +42,7 @@ params = {
 # calculated parameters
 params["l0"] = params["L"] / (params["n"] - 1)
 params["m_segment"] = params["L"] * params["rho_tether"] / (params["n"] - 1)
-params["k"] = params["k"] * (params["n"] - 1)           # segment stiffness
+params["k"] = params["k_t"] * (params["n"] - 1)           # segment stiffness
 
 # instantiate connectivity matrix and initial conditions array
 c_matrix = connectivity_matrix(params['n'])

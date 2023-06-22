@@ -62,16 +62,14 @@ def generate_animation(pos, n: int, t: npt.ArrayLike):
         return
 
 
-def analytical_solution(sag: float):
+def analytical_solution(sag: float, t_l: float):
     # catenary line equation analytical solution
-
     L = input.params['L']
     h = abs(sag)
-    a = (0.25 * L**2 - h**2)/(2*h)
+    a = (0.25 * t_l**2 - h**2)/(2*h)
     x = np.linspace(0, L, 1000)
     y = a*np.cosh((x-0.5*L)/a)      # included shift of curve 0.5*L to the right
     y -= y[0]                       # adjust height
-
     return x, y
 
 
@@ -103,9 +101,14 @@ def plot(psystem: ParticleSystem):
     # generate_animation(position, n, t_vector)
 
     # generating analytical solution for the same time vector
-    x, y = analytical_solution(min(position.iloc[-1]))
-    plt.figure(0)
+    tether_length = 0
+    particles = ps.particles
+    for i in range(n - 1):
+        tether_length += np.linalg.norm(particles[i].x - particles[i + 1].x)
+    x, y = analytical_solution(min(position.iloc[-1]), tether_length)
+
     # plotting & graph configuration
+    plt.figure(0)
     for i in range(n):
         position[f"z{i + 1}"].plot()
     # plt.plot(t, exact)

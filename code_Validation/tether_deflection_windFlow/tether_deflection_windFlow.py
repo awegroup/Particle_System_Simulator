@@ -10,7 +10,7 @@ import pandas as pd
 import sys
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
-
+from sympy import *
 def instantiate_ps():
     return ParticleSystem(input.c_matrix, input.init_cond, input.params)
 
@@ -84,32 +84,61 @@ def calculate_f_a(ps: ParticleSystem):
     return f_a
 
 
-def exact_solution(t_vector: npt.ArrayLike):
+def exact_solution():
     # analytical steady state solution for particles position
+    import sympy as sp
+
     k = input.params["k"]
-    c = input.params["c"]
     n = input.params["n"]
-    m = [input.init_cond[i][-2] for i in range(n)]
+    cd = input.params["c_d_bridle"]
+    d = input.params["d_bridle"]
+    rho = input.params["rho"]
+    vw = input.params["v_w"]
+    l0 = input.params["l0"]
+    l = input.params["L"]
 
-    omega = np.sqrt(k / m)
-    dx = 0
-    exact_x = [np.ones(len(t_vector)) * dx[i] for i in range(n)]
+    ux1, uy1 = sp.symbols("ux1 uy1")
+    ux2, uy2 = sp.symbols("ux2 uy2")
+    ux3, uy3 = sp.symbols("ux3 uy3")
 
-    # Estimated (expected) decay rate of implicit Euler scheme as a function of t
-    dt = input.params['dt']
-    decay = np.exp(-0.5 * omega ** 2 * dt * t_vector)
+    f = 0.5*0.5*rho*cd*(1-uy1)*d*np.linalg.norm(vw)**2 + 0.5*0.5*rho*cd*(1+uy1)*d*np.linalg.norm(vw)**2
 
-    zeta = c/(2 * omega)        # critical damping faction
+    F = sp.Matrix([0, 0, f, 0, 0, 0])
+    U = sp.Matrix([ux1, uy1, ux2, uy2, ux3, uy3])
 
-    # Analytical solution depends on value of zeta
-    if zeta <1:
-        print("system is underdamped")
-    elif zeta == 1:
-        print("system is critically damped")
-    else:
-        print("system is overdamped")
+    t1 = sp.atan((1 + uy2) / ux2)
+    t2 = pi - sp.atan((1 - uy2) / ux2)
 
-    return exact_x, decay
+    # t1, t2 = sp.symbols("t1 t2")
+
+    K1 = k*sp.Matrix([[sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1), -sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1)],
+                      [sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1), -sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1)],
+                      [-sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1), sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1)],
+                      [-sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1), sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1)]])
+
+    K2 = k*sp.Matrix([[sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2), -sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2)],
+                      [sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2), -sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2)],
+                      [-sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2), sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2)],
+                      [-sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2), sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2)]])
+
+    K = sp.Matrix(zeros(n*2, n*2))      # 2d evaluation for now
+    K[0:4, 0:4] += K1
+    K[2:, 2:] += K2
+
+    # K = K.col_insert(6, F)
+    # print(K)
+    U = sp.Matrix([ux2, uy2])
+    F = sp.Matrix([f, 0])
+    K = K[2:4, 2:4]
+    soe = K*U - F
+    x = (0.1, 0)
+
+    u = (ux2, uy2)
+    soe = (soe[0], soe[1])
+    # print(soe)
+    # return sp.solve_linear_system(K, U)#  sp.solve(soe, (ux2, uy2))
+
+    return sp.solvers.solvers.nsolve(soe, u, x)
 
 
 def plot(psystem: ParticleSystem):
@@ -138,7 +167,7 @@ def plot(psystem: ParticleSystem):
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext + f_aero)
 
     # generate animation of results, requires smarter configuration to make usable on other PCs
-    generate_animation(position, n, t_vector)
+    # generate_animation(position, n, t_vector)
 
     # generating analytical solution for the same time vector
     # exact, decay = exact_solution(t_vector)
@@ -160,7 +189,7 @@ def plot(psystem: ParticleSystem):
     # Not sure if this is the smartest way to automate saving results relative to other users directories
     file_path = sys.path[1] + "/Msc_Alexander_Batchelor/code_Validation/benchmark_results/" \
                               "tether_deflection_windFlow/"
-    img_name = f"{input.params['n']}Particles-{input.params['k']}stiffness-{input.params['c']}damping_coefficient-" \
+    img_name = f"{input.params['n']}Particles-{input.params['k_t']}stiffness-{input.params['c']}damping_coefficient-" \
                f"{input.params['dt']}timestep-{input.params['t_steps']}steps.jpeg"
     plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
 
@@ -173,3 +202,22 @@ if __name__ == "__main__":
     ps = instantiate_ps()
 
     plot(ps)
+
+    print(exact_solution())
+    #
+    # stiffness = ps.stiffness_m
+    # b = calculate_f_a(ps)
+    # print(b)
+    # print(stiffness)
+    # print(np.linalg.det(stiffness))
+    # stiffness = stiffness[stiffness != 0]
+    # print(stiffness)
+    # print(np.linalg.det([[-2000, 2000, 0], [2000, -4000, 2000], [0, 2000, -2000]]))
+    #
+    # from scipy.sparse.linalg import bicgstab
+    # x, _ = bicgstab(stiffness, b)
+    #
+    #
+    # print(x)
+    # print(_)
+

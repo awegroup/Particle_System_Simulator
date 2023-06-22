@@ -58,33 +58,16 @@ class SpringDamper(ImplicitForce):
     def calculate_jacobian(self):
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
+
         if norm_pos != 0:
             unit_vector = relative_pos / norm_pos
         else:
             norm_pos = 1
             unit_vector = np.array([0, 0, 0])
 
-
-        # # Copied from Java code
-        # Jx = np.zeros((3, 3))
-        #
-        # mul = self.__l0 * 1 / norm_pos - 1
-        # Jx[0, 0] = unit_vector[0][0]*unit_vector[0][0] + (unit_vector[0][0]*unit_vector[0][0] - 1) * mul
-        # Jx[0, 1] = unit_vector[0][0]*unit_vector[0][1] + unit_vector[0][0]*unit_vector[0][1] * mul
-        # Jx[0, 2] = unit_vector[0][0]*unit_vector[0][2] + unit_vector[0][0]*unit_vector[0][2] * mul
-        # Jx[1, 0] = unit_vector[0][1]*unit_vector[0][0] + unit_vector[0][1]*unit_vector[0][0] * mul
-        # Jx[1, 1] = unit_vector[0][1]*unit_vector[0][1] + (unit_vector[0][1]*unit_vector[0][1] - 1) * mul
-        # Jx[1, 2] = unit_vector[0][1]*unit_vector[0][2] + unit_vector[0][1]*unit_vector[0][2] * mul
-        # Jx[2, 0] = unit_vector[0][2]*unit_vector[0][0] + unit_vector[0][2]*unit_vector[0][0] * mul
-        # Jx[2, 1] = unit_vector[0][2]*unit_vector[0][1] + unit_vector[0][2]*unit_vector[0][1] * mul
-        # Jx[2, 2] = unit_vector[0][2]*unit_vector[0][2] + (unit_vector[0][2]*unit_vector[0][2] - 1) * mul
-        #
-        # Jx = self.__k * Jx
-
-        # from Python v1
         i = np.identity(3)
         T = np.matmul(np.transpose(unit_vector), unit_vector)
-        jx = -self.__k * ((self.__l0 / norm_pos - 1) * (T - i) + T)       # R. Leuthold
+        jx = -self.__k * ((self.__l0 / norm_pos - 1) * (T - i) + T)
 
         jv = -self.__c*i
 
