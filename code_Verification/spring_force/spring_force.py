@@ -53,6 +53,7 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
 
     for step in t_vector:          # propagating the simulation for each timestep and saving results
         x_next, v_next = psystem.simulate(f_ext)
+        # x_next, v_next = psystem.kin_damp_sim(f_ext)
         position.loc[step], velocity.loc[step] = x_next[-1], v_next[-1]
 
     # generating analytical solution for the same time vector

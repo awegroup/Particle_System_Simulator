@@ -11,6 +11,8 @@ import sys
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
 
+from sympy import *
+
 def instantiate_ps():
     return ParticleSystem(input.c_matrix, input.init_cond, input.params)
 
@@ -68,9 +70,64 @@ def analytical_solution(sag: float, t_l: float):
     h = abs(sag)
     a = (0.25 * t_l**2 - h**2)/(2*h)
     x = np.linspace(0, L, 1000)
-    y = a*np.cosh((x-0.5*L)/a)      # included shift of curve 0.5*L to the right
+    y = a*np.cosh((x-0.5*L)/a)      # shift curve 0.5*L in direction of positive x-axis
     y -= y[0]                       # adjust height
     return x, y
+
+
+def static_solution(ps: ParticleSystem):
+    # hardcoded for 5 particles for now
+    import sympy as sp
+
+    k = input.params["k"]       #
+    n = input.params["n"]
+    l0 = input.params["l0"]
+    l = input.params["L"]
+    particles = ps.particles
+    ux1, uz1 = sp.symbols("ux1 uz1")
+    ux2, uz2 = sp.symbols("ux2 uz2")
+    ux3, uz3 = sp.symbols("ux3 uz3")
+    ux4, uz4 = sp.symbols("ux4 uz4")
+    ux5, uz5 = sp.symbols("ux5 uz5")
+
+    F = sp.Matrix([0, -g*particles[0].m, 0, -g*particles[1].m, 0, -g*particles[2].m, 0, -g*particles[3].m,
+                   0, -g*particles[4].m])
+
+    U = sp.Matrix([ux1, uz1, ux2, uz2, uz3, uz3, uz4, uz4, uz5, uz5])
+
+    t1 = sp.atan((1 + uz2) / ux2)
+    t2 = pi - sp.atan((1 - uy2) / ux2)
+
+    # t1, t2 = sp.symbols("t1 t2")
+
+    K1 = k*sp.Matrix([[sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1), -sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1)],
+                      [sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1), -sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1)],
+                      [-sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1), sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1)],
+                      [-sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1), sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1)]])
+
+    K2 = k*sp.Matrix([[sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2), -sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2)],
+                      [sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2), -sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2)],
+                      [-sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2), sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2)],
+                      [-sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2), sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2)]])
+
+    K = sp.Matrix(zeros(n*2, n*2))      # 2d evaluation for now
+    K[0:4, 0:4] += K1
+    K[2:, 2:] += K2
+
+    # K = K.col_insert(6, F)
+    # print(K)
+    U = sp.Matrix([ux2, uy2])
+    F = sp.Matrix([f, 0])
+    K = K[2:4, 2:4]
+    soe = K*U - F
+    x = (0, 0, 0.1, 0, 0, 0)
+
+    u = (ux1, uz1, ux2, uz2, ux3, uz3, uz4, uz4, uz5, uz5)
+    soe = (soe[0], soe[1], ux1, uz1, ux5, uz5)
+    # print(soe)
+    # return sp.solve_linear_system(K, U)#  sp.solve(soe, (ux2, uy2))
+    solution = sp.solvers.solvers.nsolve(soe, u, x)
+    return sp.solvers.solvers.nsolve(soe, u, x)
 
 
 def plot(psystem: ParticleSystem):
@@ -93,7 +150,10 @@ def plot(psystem: ParticleSystem):
     g = input.params["g"]
     n = input.params["n"]
     f_ext = np.array([[0, 0, -g] for i in range(n)]).flatten()
-
+    print(f_ext)
+    particles = ps.particles
+    f_ext = np.array([[0, 0, -g*particle.m] for particle in particles]).flatten()
+    print(f_ext)
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext)
 
@@ -150,4 +210,12 @@ if __name__ == "__main__":
     ps = instantiate_ps()
 
     plot(ps)
+    import scipy.sparse.linalg as spla
 
+    jacobian = ps.stiffness_m
+    g = input.params['g']
+    n = input.params['n']
+    b = np.array([[0, 0, -g] for i in range(n)]).flatten()
+    x = spla.bicgstab(jacobian, b)
+
+    print(x)

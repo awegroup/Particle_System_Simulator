@@ -8,7 +8,7 @@ import numpy.typing as npt
 from numpy import linalg as la
 
 
-def system_energy(ps: ParticleSystem, params: dict, v_prev: npt.ArrayLike):
+def system_energy(ps: ParticleSystem, params: dict, v_prev: npt.ArrayLike = np.array([0, 0, 0])):
 
     k = params['k']
     c = params['c']
@@ -30,11 +30,11 @@ def system_energy(ps: ParticleSystem, params: dict, v_prev: npt.ArrayLike):
     # Gravitational potential
     gp = np.array([particle.m * g * particle.x[-1] for particle in particles])
 
-    # Energy dissipated by friction
-    ed = np.array([c * dt * abs(la.norm(particles[i].v)**2 - la.norm(v_prev[i*3:(i + 1)*3])**2) for i in range(n)])
+    # # Energy dissipated by friction
+    # ed = np.array([c * dt * abs(la.norm(particles[i].v)**2 - la.norm(v_prev[i*3:(i + 1)*3])**2) for i in range(n)])
 
     # Total system energy
-    te = sum(ep) + sum(ke) + sum(gp) - sum(ed)
+    te = sum(ep) + sum(ke) + sum(gp) #- sum(ed)
 
     # print("ep:", ep)
     # print("ke:", ke)

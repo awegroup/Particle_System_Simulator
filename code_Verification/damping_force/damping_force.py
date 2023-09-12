@@ -4,13 +4,12 @@ Script for verification of correct implementation spring force of SpringDamper o
 import numpy as np
 import numpy.typing as npt
 import input_damping_force as input
+import time
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.integrate import solve_ivp
-
 import sys
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
-
 from Msc_Alexander_Batchelor.src.AnalysisModules.SystemEnergy import system_energy
 
 
@@ -90,7 +89,7 @@ def s_energy(pos, vel, t_vector):
     return total_energy
 
 
-def plot(psystem: ParticleSystem):          # visualization of simulation and analytical results
+def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualization of simulation and analytical results
 
     # time vector for simulation loop, data storage and plotting
     dt = input.params['dt']
@@ -102,17 +101,38 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
     v = {"v": np.zeros(len(t_vector), )}
     position = pd.DataFrame(index=t_vector, columns=x)
     velocity = pd.DataFrame(index=t_vector, columns=v)
+    position2 = pd.DataFrame(index=t_vector, columns=x)
+    velocity2 = pd.DataFrame(index=t_vector, columns=v)
     sys_en = pd.DataFrame(index=t_vector, columns={'SE': np.zeros(len(t_vector))})
     v_prev = np.zeros(input.params['n'] * 3)
 
     # addition of (constant) external forces
     f_ext = np.zeros(input.params['n'] * 3, )
 
+    start_time = time.time()
     for step in t_vector:          # propagating the simulation for each timestep and saving results
-        sys_en.loc[step] = system_energy(psystem, input.params, v_prev)
+        # sys_en.loc[step] = system_energy(psystem, input.params, v_prev)
         x_next, v_next = psystem.simulate(f_ext)
         position.loc[step], velocity.loc[step] = x_next[-1], v_next[-1]
-        v_prev = v_next
+        # v_prev = v_next
+
+        residual_f = f_ext - psystem.f_int
+        if np.linalg.norm(residual_f) <= 1e-3:
+            break
+    stop_time = time.time()
+
+    start_time2 = time.time()
+    for step in t_vector:  # propagating the simulation for each timestep and saving results
+        x_next, v_next = psystem2.kin_damp_sim(f_ext)
+        position2.loc[step], velocity2.loc[step] = x_next[-1], v_next[-1]
+
+        residual_f = f_ext - psystem2.f_int
+        if np.linalg.norm(residual_f) <= 1e-3:
+            break
+    stop_time2 = time.time()
+
+    print(f'PS classic: {(stop_time - start_time):.4f} s')
+    print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
     # print(sys_en)
 
     # calculating system energy over time
@@ -128,13 +148,17 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
 
     # graph configuration
     position.plot()
-    plt.plot(t_vector, exact.y[0])
-    plt.plot(t_vector, decay)
-    plt.plot(t_vector, corrected)
+    # plt.plot(t_vector, exact.y[0])
+    # plt.plot(t_vector, decay)
+    # plt.plot(t_vector, corrected)
+    plt.plot(t_vector, np.array(position2["x"]))
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Verification PS damping force implementation with Implicit Euler scheme")
-    plt.legend(["PS simulation", "Exact solution", "Decay rate implicit Euler", "corrected for decay rate"])
+    # plt.legend(["PS simulation", "Exact solution", "Decay rate implicit Euler", "corrected for decay rate",
+    #             "Kinetic damping"])
+    plt.legend(["PS simulation", "Kinetic damping"])
+
     plt.grid()
 
     # saving resulting figure
@@ -164,5 +188,7 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
 
 if __name__ == "__main__":
     ps = instantiate_ps()
+    ps2 = instantiate_ps()
 
-    plot(ps)
+    plot(ps, ps2)
+

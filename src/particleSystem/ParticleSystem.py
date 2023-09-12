@@ -25,6 +25,7 @@ class ParticleSystem:
         self.__l0 = sim_param["l0"]
         self.__c = sim_param["c"]
         self.__dt = sim_param["dt"]
+        self.__g = sim_param["g"]
         self.__n = sim_param["n"]
 
         self.__rtol = sim_param["rel_tol"]
@@ -41,6 +42,8 @@ class ParticleSystem:
         self.__instantiate_particles(initial_conditions)
         self.__m_matrix = self.__construct_m_matrix()
         self.__instantiate_springdampers()
+        self.__w_kin = self.__calc_kin_energy()
+        self.__w_kin_min1 = self.__calc_kin_energy()
         return
 
     def __str__(self):
@@ -81,8 +84,13 @@ class ParticleSystem:
 
         return matrix
 
-    def simulate(self, f_external: npt.ArrayLike = False):
-        if not f_external.any():
+    def __calc_kin_energy(self):
+        v = self.__pack_v_current()
+        w_kin = np.matmul(np.matmul(v.T, self.__m_matrix), v)      # Kinetic energy, 0.5 constant can be neglected
+        return w_kin
+
+    def simulate(self, f_external: npt.ArrayLike = ()):
+        if not len(f_external):
             f_external = np.zeros(self.__n * 3, )
         f = self.__one_d_force_vector() + f_external
         v_current = self.__pack_v_current()
@@ -107,6 +115,29 @@ class ParticleSystem:
 
         # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
         self.__update_x_v(x_next, v_next)
+        return x_next, v_next
+
+    def kin_damp_sim(self, f_ext: npt.ArrayLike):
+        if len(f_ext):
+            x_next, v_next = self.simulate(f_ext)
+        else:
+            x_next, v_next = self.simulate()
+
+        w_kin_new = self.__calc_kin_energy()
+        if w_kin_new > self.__w_kin:
+            self.__update_w_kin(w_kin_new)
+        else:
+            f_res = f_ext - self.__f
+            mass_inv_res = np.matmul(np.linalg.inv(self.__m_matrix), f_res)
+            # v_next = 0.5 * self.__dt * mass_inv_res
+            v_next = np.zeros(self.__n*3, )
+
+            # q = (self.__w_kin - w_kin_new) / (self.__w_kin**2 - self.__w_kin_min1 - w_kin_new)
+            # x_next = -(1 - q) * self.__pack_v_current() + q * self.__dt / 2 * mass_inv_res
+
+            self.__update_x_v(x_next, v_next)
+            self.__update_w_kin(w_kin_new)
+
         return x_next, v_next
 
     def __pack_v_current(self):
@@ -155,6 +186,11 @@ class ParticleSystem:
             self.__particles[i].update_vel(v_next[i * 3:i * 3 + 3])
         return
 
+    def __update_w_kin(self, w_kin_new: float):
+        self.__w_kin_min1 = self.__w_kin
+        self.__w_kin = w_kin_new
+        return
+
     @property
     def particles(self):            # Temporary solution to calculate external aerodynamic forces
         return self.__particles
@@ -167,6 +203,11 @@ class ParticleSystem:
     def stiffness_m(self):
         self.__system_jacobians()
         return self.__jx
+
+    @property
+    def f_int(self):
+        return self.__f
+
 
 if __name__ == "__main__":
 
@@ -188,9 +229,10 @@ if __name__ == "__main__":
         "max_iter": 1e5,  # [-] maximum number of iterations
 
         # physical parameters
-
+        "g": 9.81           # [m/s^2] gravitational acceleration
     }
 
     ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
+    print(ps.system_energy)
     pass

@@ -30,7 +30,7 @@ params = {
     "max_iter": 1e5,                # [-] maximum number of iterations
 
     # physical parameters
-
+    "g": 9.81                       # [m/s^2] gravitational acceleration
 }
 # calculated parameters
 params["l0"] = params["L"]/(params["n"]-1)

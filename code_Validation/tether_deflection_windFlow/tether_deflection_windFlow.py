@@ -8,6 +8,7 @@ import tether_deflection_windFlow_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
+import time
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
 from sympy import *
@@ -84,64 +85,61 @@ def calculate_f_a(ps: ParticleSystem):
     return f_a
 
 
-def exact_solution():
-    # analytical steady state solution for particles position
-    import sympy as sp
-
-    k = input.params["k"]
-    n = input.params["n"]
-    cd = input.params["c_d_bridle"]
-    d = input.params["d_bridle"]
-    rho = input.params["rho"]
-    vw = input.params["v_w"]
-    l0 = input.params["l0"]
-    l = input.params["L"]
-
-    ux1, uy1 = sp.symbols("ux1 uy1")
-    ux2, uy2 = sp.symbols("ux2 uy2")
-    ux3, uy3 = sp.symbols("ux3 uy3")
-
-    f = 0.5*0.5*rho*cd*(1-uy1)*d*np.linalg.norm(vw)**2 + 0.5*0.5*rho*cd*(1+uy1)*d*np.linalg.norm(vw)**2
-
-    F = sp.Matrix([0, 0, f, 0, 0, 0])
-    U = sp.Matrix([ux1, uy1, ux2, uy2, ux3, uy3])
-
-    t1 = sp.atan((1 + uy2) / ux2)
-    t2 = pi - sp.atan((1 - uy2) / ux2)
-
-    # t1, t2 = sp.symbols("t1 t2")
-
-    K1 = k*sp.Matrix([[sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1), -sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1)],
-                      [sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1), -sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1)],
-                      [-sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1), sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1)],
-                      [-sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1), sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1)]])
-
-    K2 = k*sp.Matrix([[sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2), -sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2)],
-                      [sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2), -sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2)],
-                      [-sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2), sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2)],
-                      [-sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2), sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2)]])
-
-    K = sp.Matrix(zeros(n*2, n*2))      # 2d evaluation for now
-    K[0:4, 0:4] += K1
-    K[2:, 2:] += K2
-
-    # K = K.col_insert(6, F)
-    # print(K)
-    U = sp.Matrix([ux2, uy2])
-    F = sp.Matrix([f, 0])
-    K = K[2:4, 2:4]
-    soe = K*U - F
-    x = (0.1, 0)
-
-    u = (ux2, uy2)
-    soe = (soe[0], soe[1])
-    # print(soe)
-    # return sp.solve_linear_system(K, U)#  sp.solve(soe, (ux2, uy2))
-
-    return sp.solvers.solvers.nsolve(soe, u, x)
+# def exact_solution():
+#     # analytical steady state solution for particles position
+#     import sympy as sp
+#
+#     k = input.params["k"]
+#     n = input.params["n"]
+#     cd = input.params["c_d_bridle"]
+#     d = input.params["d_bridle"]
+#     rho = input.params["rho"]
+#     vw = input.params["v_w"]
+#     l0 = input.params["l0"]
+#     l = input.params["L"]
+#
+#     ux1, uy1 = sp.symbols("ux1 uy1")
+#     ux2, uy2 = sp.symbols("ux2 uy2")
+#     ux3, uy3 = sp.symbols("ux3 uy3")
+#
+#     # fd = 0.5*0.5*rho*cd*(l0-uy1)*d*np.linalg.norm(vw)**2 + 0.5*0.5*rho*cd*(l0+uy1)*d*np.linalg.norm(vw)**2
+#     fd = 0.5*rho*cd*l0*d*np.linalg.norm(vw)**2
+#
+#     # f = sp.Matrix([0, 0, fd, 0, 0, 0])
+#     # U = sp.Matrix([ux1, uy1, ux2, uy2, ux3, uy3])
+#
+#     t1 = sp.atan((l0 + uy2) / ux2)
+#     t2 = pi - sp.atan((l0 - uy2) / ux2)
+#
+#     K1 = k*sp.Matrix([[sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1), -sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1)],
+#                       [sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1), -sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1)],
+#                       [-sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1), sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1)],
+#                       [-sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1), sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1)]])
+#
+#     K2 = k*sp.Matrix([[sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2), -sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2)],
+#                       [sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2), -sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2)],
+#                       [-sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2), sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2)],
+#                       [-sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2), sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2)]])
+#
+#     K = sp.Matrix(zeros(n*2, n*2))      # 2d evaluation for now
+#     K[0:4, 0:4] += K1
+#     K[2:, 2:] += K2
+#
+#     u = sp.Matrix([ux2, uy2])
+#     f = sp.Matrix([fd, 0])
+#     K = K[2:4, 2:4]
+#     soe = K*u - f
+#     x = (0, 0, -0.3, 0, 0, 0)
+#
+#     u = (ux1, uy1, ux2, uy2, ux3, uy3)
+#     soe = (soe[0], soe[1], ux1, uy1, ux3, uy3)
+#
+#     x = sp.solvers.solvers.nsolve(soe, u, x)
+#
+#     return sp.solvers.solvers.nsolve(soe, u, x)
 
 
-def plot(psystem: ParticleSystem):
+def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     n = input.params['n']
     t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
 
@@ -158,14 +156,44 @@ def plot(psystem: ParticleSystem):
     position = pd.DataFrame(index=t_vector, columns=x)
     velocity = pd.DataFrame(index=t_vector, columns=v)
 
+    position2 = pd.DataFrame(index=t_vector, columns=x)
+    velocity2 = pd.DataFrame(index=t_vector, columns=v)
+
     g = input.params["g"]
     n = input.params["n"]
     f_ext = np.array([[0, 0, 0] for i in range(n)]).flatten()
-
+    f_aero = calculate_f_a(psystem)
+    # print(f_aero)
+    start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
-        f_aero = calculate_f_a(ps)
+        # f_aero = calculate_f_a(ps)
+
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext + f_aero)
 
+        residual_f = f_aero[3:-3] - np.abs(psystem.f_int[3:-3])
+        if np.linalg.norm(residual_f) <= 1e-3:
+            print("Classic PS converged")
+            break
+    stop_time = time.time()
+
+    start_time2 = time.time()
+    for step in t_vector:  # propagating the simulation for each timestep and saving results
+        # f_aero = calculate_f_a(ps2)
+
+        # x_next, v_next = psystem2.kin_damp_sim(f_ext + f_aero)
+        # position2.loc[step], velocity2.loc[step] = x_next[-1], v_next[-1]
+
+        position2.loc[step], velocity2.loc[step] = psystem2.kin_damp_sim(f_ext + f_aero)
+
+        residual_f = f_aero[3:-3] - np.abs(psystem2.f_int[3:-3])
+        # print(np.linalg.norm(residual_f))
+        if np.linalg.norm(residual_f) <= 1e-3:
+            print("Kinetic damping PS converged")
+            break
+    stop_time2 = time.time()
+
+    print(f'PS classic: {(stop_time - start_time):.4f} s')
+    print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
     # generate animation of results, requires smarter configuration to make usable on other PCs
     # generate_animation(position, n, t_vector)
 
@@ -175,11 +203,14 @@ def plot(psystem: ParticleSystem):
     # plotting & graph configuration
     for i in range(n):
         position[f"x{i + 1}"].plot()
+
+    for i in range(n):
+        position2[f"x{i + 1}"].plot()
     # plt.plot(t, exact)
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Validation PS framework, deflection of particles by wind flow, with Implicit Euler scheme")
-    plt.legend([f"displacement particle {i + 1}" for i in range(n)])
+    plt.legend([f"displacement particle {i + 1}" for i in range(n)] + [f"kinetic damped particle {i + 1}" for i in range(n)])
     plt.grid()
 
     # saving resulting figure
@@ -200,24 +231,7 @@ def plot(psystem: ParticleSystem):
 
 if __name__ == "__main__":
     ps = instantiate_ps()
+    ps2 = instantiate_ps()
+    # print(exact_solution())
 
-    plot(ps)
-
-    print(exact_solution())
-    #
-    # stiffness = ps.stiffness_m
-    # b = calculate_f_a(ps)
-    # print(b)
-    # print(stiffness)
-    # print(np.linalg.det(stiffness))
-    # stiffness = stiffness[stiffness != 0]
-    # print(stiffness)
-    # print(np.linalg.det([[-2000, 2000, 0], [2000, -4000, 2000], [0, 2000, -2000]]))
-    #
-    # from scipy.sparse.linalg import bicgstab
-    # x, _ = bicgstab(stiffness, b)
-    #
-    #
-    # print(x)
-    # print(_)
-
+    plot(ps, ps2)
