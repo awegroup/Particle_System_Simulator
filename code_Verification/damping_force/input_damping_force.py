@@ -18,14 +18,14 @@ def initial_conditions():
 params = {
     # model parameters
     "n": 2,                         # [-] number of particles
-    "k": 1e3,                       # [N/m] spring stiffness
+    "k": 7e5,                       # [N/m] spring coefficient
     # "c": 2*1000**0.5,               # [N s/m] critical damping coefficient (2 * sqrt(k/m))
-    "c": 1,                        # [N s/m] damping coefficient
+    "c": 10,                        # [N s/m] damping coefficient
     "L": 0,                         # [m] tether length
 
     # simulation settings
-    "dt": 0.01,                    # [s] simulation timestep
-    "t_steps": 200,                # [-] number of simulated time steps
+    "dt": 0.001,                    # [s] simulation timestep
+    "t_steps": 2000,                # [-] number of simulated time steps
     "abs_tol": 1e-50,               # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-] relative error tolerance iterative solver
     "max_iter": 1e5,                # [-] maximum number of iterations

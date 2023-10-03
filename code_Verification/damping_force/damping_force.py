@@ -141,10 +141,12 @@ def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualiza
     sys_en = sys_en / sys_en.iloc[0]
 
     # generating analytical solution for the same time vector
+    start_time3 = time.time()
     exact, decay = exact_solution(t_vector)
-
+    stop_time3 = time.time()
+    print(f'IVP solved: {(stop_time3 - start_time3):.4f} s')
     # correcting simulation for decay rate
-    corrected = np.divide(np.array(position["x"]), decay)
+    # corrected = np.divide(np.array(position["x"]), decay)
 
     # graph configuration
     position.plot()

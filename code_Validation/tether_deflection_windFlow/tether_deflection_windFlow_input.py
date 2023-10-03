@@ -19,7 +19,7 @@ def initial_conditions(l0: float, n: int, m_segment: float):
 params = {
     # model parameters
     "n": 10,                         # [-]       number of particles
-    "k_t": 1e3,                # [N/m]     spring stiffness
+    "k_t": 67232,                # [N/m]     spring stiffness
     "c": 10,                         # [N s/m] damping coefficient
     "L": 10,                        # [m]       tether length
     "m_block": 100,                  # [kg]     mass attached to end of tether

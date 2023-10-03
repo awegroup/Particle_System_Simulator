@@ -11,7 +11,7 @@ import sys
 import time
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
-from sympy import *
+
 def instantiate_ps():
     return ParticleSystem(input.c_matrix, input.init_cond, input.params)
 
@@ -85,60 +85,6 @@ def calculate_f_a(ps: ParticleSystem):
     return f_a
 
 
-# def exact_solution():
-#     # analytical steady state solution for particles position
-#     import sympy as sp
-#
-#     k = input.params["k"]
-#     n = input.params["n"]
-#     cd = input.params["c_d_bridle"]
-#     d = input.params["d_bridle"]
-#     rho = input.params["rho"]
-#     vw = input.params["v_w"]
-#     l0 = input.params["l0"]
-#     l = input.params["L"]
-#
-#     ux1, uy1 = sp.symbols("ux1 uy1")
-#     ux2, uy2 = sp.symbols("ux2 uy2")
-#     ux3, uy3 = sp.symbols("ux3 uy3")
-#
-#     # fd = 0.5*0.5*rho*cd*(l0-uy1)*d*np.linalg.norm(vw)**2 + 0.5*0.5*rho*cd*(l0+uy1)*d*np.linalg.norm(vw)**2
-#     fd = 0.5*rho*cd*l0*d*np.linalg.norm(vw)**2
-#
-#     # f = sp.Matrix([0, 0, fd, 0, 0, 0])
-#     # U = sp.Matrix([ux1, uy1, ux2, uy2, ux3, uy3])
-#
-#     t1 = sp.atan((l0 + uy2) / ux2)
-#     t2 = pi - sp.atan((l0 - uy2) / ux2)
-#
-#     K1 = k*sp.Matrix([[sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1), -sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1)],
-#                       [sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1), -sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1)],
-#                       [-sp.cos(t1)*sp.cos(t1), -sp.sin(t1)*sp.cos(t1), sp.cos(t1)*sp.cos(t1), sp.sin(t1)*sp.cos(t1)],
-#                       [-sp.sin(t1)*sp.cos(t1), -sp.sin(t1)*sp.sin(t1), sp.sin(t1)*sp.cos(t1), sp.sin(t1)*sp.sin(t1)]])
-#
-#     K2 = k*sp.Matrix([[sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2), -sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2)],
-#                       [sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2), -sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2)],
-#                       [-sp.cos(t2)*sp.cos(t2), -sp.sin(t2)*sp.cos(t2), sp.cos(t2)*sp.cos(t2), sp.sin(t2)*sp.cos(t2)],
-#                       [-sp.sin(t2)*sp.cos(t2), -sp.sin(t2)*sp.sin(t2), sp.sin(t2)*sp.cos(t2), sp.sin(t2)*sp.sin(t2)]])
-#
-#     K = sp.Matrix(zeros(n*2, n*2))      # 2d evaluation for now
-#     K[0:4, 0:4] += K1
-#     K[2:, 2:] += K2
-#
-#     u = sp.Matrix([ux2, uy2])
-#     f = sp.Matrix([fd, 0])
-#     K = K[2:4, 2:4]
-#     soe = K*u - f
-#     x = (0, 0, -0.3, 0, 0, 0)
-#
-#     u = (ux1, uy1, ux2, uy2, ux3, uy3)
-#     soe = (soe[0], soe[1], ux1, uy1, ux3, uy3)
-#
-#     x = sp.solvers.solvers.nsolve(soe, u, x)
-#
-#     return sp.solvers.solvers.nsolve(soe, u, x)
-
-
 def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     n = input.params['n']
     t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
@@ -164,6 +110,7 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     f_ext = np.array([[0, 0, 0] for i in range(n)]).flatten()
     f_aero = calculate_f_a(psystem)
     # print(f_aero)
+
     start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         # f_aero = calculate_f_a(ps)
@@ -194,6 +141,7 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 
     print(f'PS classic: {(stop_time - start_time):.4f} s')
     print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
+
     # generate animation of results, requires smarter configuration to make usable on other PCs
     # generate_animation(position, n, t_vector)
 
@@ -206,11 +154,13 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 
     for i in range(n):
         position2[f"x{i + 1}"].plot()
+
     # plt.plot(t, exact)
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Validation PS framework, deflection of particles by wind flow, with Implicit Euler scheme")
-    plt.legend([f"displacement particle {i + 1}" for i in range(n)] + [f"kinetic damped particle {i + 1}" for i in range(n)])
+    plt.legend([f"displacement particle {i + 1}" for i in range(n)] +
+               [f"kinetic damped particle {i + 1}" for i in range(n)])
     plt.grid()
 
     # saving resulting figure
@@ -232,6 +182,5 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 if __name__ == "__main__":
     ps = instantiate_ps()
     ps2 = instantiate_ps()
-    # print(exact_solution())
 
     plot(ps, ps2)

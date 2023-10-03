@@ -42,8 +42,15 @@ class ParticleSystem:
         self.__instantiate_particles(initial_conditions)
         self.__m_matrix = self.__construct_m_matrix()
         self.__instantiate_springdampers()
+
+        # Variables required for kinetic damping & residual force damping
         self.__w_kin = self.__calc_kin_energy()
         self.__w_kin_min1 = self.__calc_kin_energy()
+        self.__w_kin_min2 = self.__calc_kin_energy()
+        self.__vis_damp = True
+        self.__x_min1 = np.zeros(self.__n, )
+        self.__x_min2 = np.zeros(self.__n, )
+
         return
 
     def __str__(self):
@@ -54,9 +61,6 @@ class ParticleSystem:
         for particle in self.__particles:
             print(f" p{n}: ", particle)
             n += 1
-        # print("Instantiated spring-damper elements:")
-        # for springdamper in self.__springdampers:
-        #     print(" ", springdamper)
         return ""
 
     def __instantiate_particles(self, initial_conditions):
@@ -70,8 +74,8 @@ class ParticleSystem:
 
     def __instantiate_springdampers(self):
         b = np.nonzero(np.triu(self.__connectivity_matrix))
-        b = np.column_stack((b[0], b[1]))
-        for index in b:
+        self.__b = np.column_stack((b[0], b[1]))
+        for index in self.__b:
             self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]],
                                         self.__k, self.__l0, self.__c, self.__dt))
         return
@@ -93,6 +97,7 @@ class ParticleSystem:
         if not len(f_external):
             f_external = np.zeros(self.__n * 3, )
         f = self.__one_d_force_vector() + f_external
+
         v_current = self.__pack_v_current()
         x_current = self.__pack_x_current()
 
@@ -102,6 +107,9 @@ class ParticleSystem:
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
         b = self.__dt * f + self.__dt ** 2 * np.matmul(jx, v_current)
 
+        # checking conditioning of A and b
+        # print("conditioning A:", np.linalg.cond(A))
+
         for i in range(self.__n):
             if self.__particles[i].fixed:
                 A[i * 3: (i + 1) * 3] = 0        # zeroes out row i to i + 3
@@ -110,6 +118,7 @@ class ParticleSystem:
 
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
+
         v_next = v_current + dv
         x_next = x_current + self.__dt * v_next
 
@@ -117,24 +126,26 @@ class ParticleSystem:
         self.__update_x_v(x_next, v_next)
         return x_next, v_next
 
-    def kin_damp_sim(self, f_ext: npt.ArrayLike):
-        if len(f_ext):
+    def kin_damp_sim(self, f_ext: npt.ArrayLike):       # kinetic damping alghorithm
+        if self.__vis_damp:         # Condition resetting viscous damping to 0
+            self.__c = 0
+            self.__springdampers = []
+            self.__instantiate_springdampers()
+            self.__vis_damp = False
+
+        if len(f_ext):              # condition checking if an f_ext is passed as argument
+            self.__save_state()
             x_next, v_next = self.simulate(f_ext)
         else:
+            self.__save_state()
             x_next, v_next = self.simulate()
 
         w_kin_new = self.__calc_kin_energy()
+
         if w_kin_new > self.__w_kin:
             self.__update_w_kin(w_kin_new)
         else:
-            f_res = f_ext - self.__f
-            mass_inv_res = np.matmul(np.linalg.inv(self.__m_matrix), f_res)
-            # v_next = 0.5 * self.__dt * mass_inv_res
             v_next = np.zeros(self.__n*3, )
-
-            # q = (self.__w_kin - w_kin_new) / (self.__w_kin**2 - self.__w_kin_min1 - w_kin_new)
-            # x_next = -(1 - q) * self.__pack_v_current() + q * self.__dt / 2 * mass_inv_res
-
             self.__update_x_v(x_next, v_next)
             self.__update_w_kin(w_kin_new)
 
@@ -160,10 +171,18 @@ class ParticleSystem:
         self.__jx[self.__jx != 0] = 0
         self.__jv[self.__jv != 0] = 0
 
-        i = 0
-        j = 1
-        for springdamper in self.__springdampers:
-            jx, jv = springdamper.calculate_jacobian()
+        # print(np.shape(self.__jx), np.shape(self.__jv))
+        # print(self.__n)
+        # print(len(self.__springdampers))
+        # print(self.__connectivity_matrix)
+        # b = np.nonzero(np.triu(self.__connectivity_matrix))
+        # b = np.column_stack((b[0], b[1]))
+        # print(b)
+        # print(len(b))
+
+        for n in range(len(self.__springdampers)):
+            jx, jv = self.__springdampers[n].calculate_jacobian()
+            i, j = self.__b[n]
 
             self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
             self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
@@ -175,8 +194,26 @@ class ParticleSystem:
             self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jv
             self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
 
-            i += 1
-            j += 1
+        # i = 0
+        # j = 1
+        # for springdamper in self.__springdampers:
+        #     jx, jv = springdamper.calculate_jacobian()
+        #     if j > 40:
+        #         print(i, j)
+        #         print(j * 3, j * 3 + 3, j * 3, j * 3 + 3)
+        #         print()
+        #     self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
+        #     self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
+        #     self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jx
+        #     self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jx
+        #
+        #     self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jv
+        #     self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jv
+        #     self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jv
+        #     self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
+        #
+        #     i += 1
+        #     j += 1
 
         return self.__jx, self.__jv
 
@@ -187,8 +224,20 @@ class ParticleSystem:
         return
 
     def __update_w_kin(self, w_kin_new: float):
+        self.__w_kin_min2 = self.__w_kin_min1
         self.__w_kin_min1 = self.__w_kin
         self.__w_kin = w_kin_new
+        return
+
+    # def __update_f_res(self, f_res_new: float):
+    #     self.__f_res_min2 = self.__f_res_min1
+    #     self.__f_res_min1 = self.__f_res
+    #     self.__f_res = f_res_new
+    #     return
+
+    def __save_state(self):
+        self.__x_min2 = self.__x_min1
+        self.__x_min1 = self.__pack_x_current()
         return
 
     @property
