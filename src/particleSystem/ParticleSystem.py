@@ -160,10 +160,14 @@ class ParticleSystem:
     def __one_d_force_vector(self):
         self.__f[self.__f != 0] = 0
 
-        for i in range(self.__n - 1):
-            fs, fd = self.__springdampers[i].force_value()
+        # print(self.__b)
+
+        for n in range(len(self.__springdampers)):
+            fs, fd = self.__springdampers[n].force_value()
+            i, j = self.__b[n]
+
             self.__f[i*3: i*3 + 3] += fs + fd
-            self.__f[(i + 1)*3: (i + 1)*3 + 3] -= fs + fd
+            self.__f[j*3: j*3 + 3] -= fs + fd
 
         return self.__f
 

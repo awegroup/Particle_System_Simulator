@@ -55,9 +55,10 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     print(f'PS classic: {(stop_time - start_time):.4f} s')
     # print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
 
-    print(position)
+    # print(position)
 
     # plotting & graph configuration
+    # Data from layout after 1 iteration step
     X = []
     Y = []
     Z = []
@@ -66,17 +67,14 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
         Y.append(position[f"y{i + 1}"].iloc[0])
         Z.append(position[f"z{i + 1}"].iloc[0])
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
+    fig= plt.figure(figsize=plt.figaspect(0.5))
+    ax = fig.add_subplot(1, 2, 1, projection="3d")
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
 
     b = np.nonzero(np.triu(input.c_matrix))
     b = np.column_stack((b[0], b[1]))
 
-    # ax.scatter(X, Y, Z, c='red')
-    # for indices in b:
-    #     ax.plot([X[indices[0]], X[indices[1]]], [Y[indices[0]], Y[indices[1]]], [Z[indices[0]], Z[indices[1]]],
-    #             color='black')
-
+    # data from final timestep
     X_f = []
     Y_f = []
     Z_f = []
@@ -85,9 +83,16 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
         Y_f.append(position[f"y{i + 1}"].iloc[-1])
         Z_f.append(position[f"z{i + 1}"].iloc[-1])
 
-    ax.scatter(X_f, Y_f, Z_f, c='red')
+    # plot inital layout
+    ax.scatter(X, Y, Z, c='red')
     for indices in b:
-        ax.plot([X_f[indices[0]], X_f[indices[1]]], [Y_f[indices[0]], Y_f[indices[1]]], [Z_f[indices[0]],
+        ax.plot([X[indices[0]], X[indices[1]]], [Y[indices[0]], Y[indices[1]]], [Z[indices[0]], Z[indices[1]]],
+                color='black')
+
+    # plot final found shape
+    ax2.scatter(X_f, Y_f, Z_f, c='red')
+    for indices in b:
+        ax2.plot([X_f[indices[0]], X_f[indices[1]]], [Y_f[indices[0]], Y_f[indices[1]]], [Z_f[indices[0]],
                 Z_f[indices[1]]], color='black')
 
     # surf = ax.plot_surface(X, Y, Z)#, rstride=1, cstride=1, cmap=cm.coolwarm,linewidth=0, antialiased=False)
