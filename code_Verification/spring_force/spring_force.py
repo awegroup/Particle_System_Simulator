@@ -62,15 +62,26 @@ def plot(psystem: ParticleSystem):          # visualization of simulation and an
     # correcting simulation for decay rate
     corrected = np.divide(np.array(position["x"]), decay)
 
-    # graph configuration
+    # plot without correction
     position.plot()
-    plt.plot(t_vector, exact)
-    plt.plot(t_vector, decay)
-    plt.plot(t_vector, corrected)
+    plt.plot(t_vector, exact, 'g')
+    plt.xlabel("time [s]")
+    plt.ylabel("position [m]")
+    plt.title("Simulation of internal spring force, without damping or external loads")
+    plt.legend([f"PS simulation, dt = {input.params['dt']} s, k = {input.params['k']:.1f}", "Exact solution"])
+    plt.grid()
+    plt.show()
+
+    # plot with correction
+    position.plot()
+    plt.plot(t_vector, exact, 'g')
+    plt.plot(t_vector, decay, 'r')
+    plt.plot(t_vector, corrected, 'k--', lw=2)
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
     plt.title("Verification PS spring force implementation with Implicit Euler scheme")
-    plt.legend(["PS simulation", "Exact solution", "Decay rate implicit Euler", "corrected for decay rate"])
+    plt.legend([f"PS simulation, dt = {input.params['dt']} s, k = {input.params['k']:.1f}",
+                "Exact solution", "Decay rate implicit Euler", "corrected for decay rate"])
     plt.grid()
 
     # saving resulting figure

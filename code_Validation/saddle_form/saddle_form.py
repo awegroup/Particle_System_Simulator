@@ -25,8 +25,10 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
         x[f"z{i + 1}"] = np.zeros(len(t_vector))
 
     position = pd.DataFrame(index=t_vector, columns=x)
+    final_step = 0
 
     position2 = pd.DataFrame(index=t_vector, columns=x)
+    final_step2 = 0
 
     n = input.params["n"]
     f_ext = np.array([[0, 0, 0] for i in range(n)]).flatten()
@@ -34,28 +36,23 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         position.loc[step], _ = psystem.simulate(f_ext)
-
-        residual_f = np.abs(psystem.f_int[3:-3])
-
-        if np.linalg.norm(residual_f) <= 1e-3:
+        final_step = step
+        if np.linalg.norm(psystem.f_int) <= 1e-3:
             print("Classic PS converged")
             break
     stop_time = time.time()
 
-    # start_time2 = time.time()
-    # for step in t_vector:  # propagating the simulation for each timestep and saving results
-    #     position2.loc[step], _ = psystem2.kin_damp_sim(f_ext)
-    #
-    #     residual_f = np.abs(psystem2.f_int[3:-3])
-    #     if np.linalg.norm(residual_f) <= 1e-3:
-    #         print("Kinetic damping PS converged")
-    #         break
-    # stop_time2 = time.time()
+    start_time2 = time.time()
+    for step in t_vector:  # propagating the simulation for each timestep and saving results
+        position2.loc[step], _ = psystem2.kin_damp_sim(f_ext)
+        final_step2 = step
+        if np.linalg.norm(psystem2.f_int) <= 1e-3:
+            print("Kinetic damping PS converged")
+            break
+    stop_time2 = time.time()
 
     print(f'PS classic: {(stop_time - start_time):.4f} s')
-    # print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
-
-    # print(position)
+    print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
 
     # plotting & graph configuration
     # Data from layout after 1 iteration step
@@ -79,9 +76,9 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     Y_f = []
     Z_f = []
     for i in range(n):
-        X_f.append(position[f"x{i + 1}"].iloc[-1])
-        Y_f.append(position[f"y{i + 1}"].iloc[-1])
-        Z_f.append(position[f"z{i + 1}"].iloc[-1])
+        X_f.append(position[f"x{i + 1}"].loc[final_step])
+        Y_f.append(position[f"y{i + 1}"].loc[final_step])
+        Z_f.append(position[f"z{i + 1}"].loc[final_step])
 
     # plot inital layout
     ax.scatter(X, Y, Z, c='red')

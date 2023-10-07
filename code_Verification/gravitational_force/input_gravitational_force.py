@@ -23,8 +23,8 @@ params = {
     "L": 0,                         # [m] tether length
 
     # simulation settings
-    "dt": 0.1,                    # [s] simulation timestep
-    "t_steps": 100,                # [-] number of simulated time steps
+    "dt": 0.01,                    # [s] simulation timestep
+    "t_steps": 1000,                # [-] number of simulated time steps
     "abs_tol": 1e-50,               # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-] relative error tolerance iterative solver
     "max_iter": 1e5,                # [-] maximum number of iterations

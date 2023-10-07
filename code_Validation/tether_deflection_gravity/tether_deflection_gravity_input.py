@@ -18,7 +18,7 @@ def initial_conditions(l0: float, n: int, m_segment: float):
 # dictionary of required parameters
 params = {
     # model parameters
-    "n": 5,                         # [-] number of particles
+    "n": 20,                         # [-] number of particles
     "k": 2e3,                       # [N/m] spring stiffness
     "c": 100,                         # [N s/m] damping coefficient
     "L": 10,                        # [m] tether length
@@ -26,7 +26,7 @@ params = {
     "rho_tether": 0.1,              # [kg/m] mass density tether
 
     # simulation settings
-    "dt": 0.01,                    # [s] simulation timestep
+    "dt": 0.1,                    # [s] simulation timestep
     "t_steps": 1000,                # [-] number of simulated time steps
     "abs_tol": 1e-50,               # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-] relative error tolerance iterative solver

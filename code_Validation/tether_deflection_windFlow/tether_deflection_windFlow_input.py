@@ -18,12 +18,12 @@ def initial_conditions(l0: float, n: int, m_segment: float):
 # dictionary of required parameters
 params = {
     # model parameters
-    "n": 10,                         # [-]       number of particles
-    "k_t": 67232,                # [N/m]     spring stiffness
-    "c": 10,                         # [N s/m] damping coefficient
-    "L": 10,                        # [m]       tether length
+    "n": 25,                         # [-]       number of particles
+    "k_t": 2933.3,                # [N/m]     spring stiffness
+    "c": 100,                         # [N s/m] damping coefficient
+    "L": 300,                        # [m]       tether length
     "m_block": 100,                  # [kg]     mass attached to end of tether
-    "rho_tether": 0.1,              # [kg/m]    mass density tether
+    "rho_tether": 0.012,              # [kg/m]    mass density tether
 
     # simulation settings
     "dt": 0.01,                    # [s]       simulation timestep
@@ -34,7 +34,7 @@ params = {
 
     # physical parameters
     "g": 9.807,                     # [m/s^2]   gravitational acceleration
-    "v_w": [5, 0, 0],               # [m/s]     wind velocity vector
+    "v_w": [6, 0, 0],               # [m/s]     wind velocity vector
     'rho': 1.225,                   # [kg/ m3]  air density
     'c_d_bridle': 1.05,             # [-]       drag-coefficient of bridles
     "d_bridle": 0.02                # [m]       diameter of bridle lines

@@ -89,12 +89,13 @@ def s_energy(pos, vel, t_vector):
     return total_energy
 
 
-def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualization of simulation and analytical results
+def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSystem):
+    # visualization of simulation and analytical results
 
     # time vector for simulation loop, data storage and plotting
     dt = input.params['dt']
     t_steps = input.params["t_steps"]
-    t_vector = np.linspace(0,  t_steps * dt, t_steps)
+    t_vector = np.linspace(0,  t_steps * dt, t_steps+1)
 
     # DataFrames as storage method of choice
     x = {"x": np.zeros(len(t_vector), )}
@@ -103,38 +104,63 @@ def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualiza
     velocity = pd.DataFrame(index=t_vector, columns=v)
     position2 = pd.DataFrame(index=t_vector, columns=x)
     velocity2 = pd.DataFrame(index=t_vector, columns=v)
+    position3 = pd.DataFrame(index=t_vector, columns=x)
+    velocity3 = pd.DataFrame(index=t_vector, columns=v)
     sys_en = pd.DataFrame(index=t_vector, columns={'SE': np.zeros(len(t_vector))})
-    v_prev = np.zeros(input.params['n'] * 3)
 
     # addition of (constant) external forces
     f_ext = np.zeros(input.params['n'] * 3, )
 
     start_time = time.time()
     for step in t_vector:          # propagating the simulation for each timestep and saving results
-        # sys_en.loc[step] = system_energy(psystem, input.params, v_prev)
+        if step == 0:
+            x, v = psystem.x_v_current
+            position.loc[step], velocity.loc[step] = x[-1], v[-1]
+            continue
+
         x_next, v_next = psystem.simulate(f_ext)
         position.loc[step], velocity.loc[step] = x_next[-1], v_next[-1]
-        # v_prev = v_next
 
-        residual_f = f_ext - psystem.f_int
+        residual_f = f_ext + psystem.f_int
         if np.linalg.norm(residual_f) <= 1e-3:
             break
     stop_time = time.time()
 
     start_time2 = time.time()
     for step in t_vector:  # propagating the simulation for each timestep and saving results
+        if step == 0:
+            x, v = psystem2.x_v_current
+            position2.loc[step], velocity2.loc[step] = x[-1], v[-1]
+            continue
+
         x_next, v_next = psystem2.kin_damp_sim(f_ext)
         position2.loc[step], velocity2.loc[step] = x_next[-1], v_next[-1]
 
-        residual_f = f_ext - psystem2.f_int
+        residual_f = f_ext + psystem2.f_int
         if np.linalg.norm(residual_f) <= 1e-3:
             break
     stop_time2 = time.time()
 
-    print(f'PS classic: {(stop_time - start_time):.4f} s')
-    print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
-    # print(sys_en)
+    start_time3 = time.time()
+    for step in t_vector:  # propagating the simulation for each timestep and saving results
+        if step == 0:
+            x, v = psystem3.x_v_current
+            position3.loc[step], velocity3.loc[step] = x[-1], v[-1]
+            continue
 
+        x_next, v_next = psystem3.kin_damp_sim(f_ext, q_correction=True)
+        position3.loc[step], velocity3.loc[step] = x_next[-1], v_next[-1]
+
+        residual_f = f_ext + psystem3.f_int
+        if np.linalg.norm(residual_f) <= 1e-3:
+            break
+    stop_time3 = time.time()
+
+    print(f'PS classic: {(stop_time - start_time):.4f} s')
+    print(f'PS kinetic w/o q: {(stop_time2 - start_time2):.4f} s')
+    print(f'PS kinetic with q: {(stop_time3 - start_time3):.4f} s')
+
+    # t_vector = np.linspace(0, t_steps * dt, t_steps)
     # calculating system energy over time
     energy = s_energy(position, velocity, t_vector)
     norm_energy = energy / energy.iloc[0]
@@ -142,48 +168,66 @@ def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualiza
 
     # generating analytical solution for the same time vector
     start_time3 = time.time()
-    exact, decay = exact_solution(t_vector)
+    x_length = position['x'].count()
+    exact, decay = exact_solution(t_vector[:x_length])
     stop_time3 = time.time()
     print(f'IVP solved: {(stop_time3 - start_time3):.4f} s')
     # correcting simulation for decay rate
     # corrected = np.divide(np.array(position["x"]), decay)
 
     # graph configuration
-    position.plot()
-    # plt.plot(t_vector, exact.y[0])
-    # plt.plot(t_vector, decay)
-    # plt.plot(t_vector, corrected)
-    plt.plot(t_vector, np.array(position2["x"]))
-    plt.xlabel("time [s]")
-    plt.ylabel("position [m]")
-    plt.title("Verification PS damping force implementation with Implicit Euler scheme")
-    # plt.legend(["PS simulation", "Exact solution", "Decay rate implicit Euler", "corrected for decay rate",
-    #             "Kinetic damping"])
-    plt.legend(["PS simulation", "Kinetic damping"])
-
-    plt.grid()
-
-    # saving resulting figure
-    figure = plt.gcf()
-    figure.set_size_inches(8.3, 5.8)  # set window to size of a3 paper
-
-    # Not sure if this is the smartest way to automate saving results relative to other users directories
-    file_path = sys.path[1] + "/Msc_Alexander_Batchelor/code_Verification/verification_results/damping_force/"
-    img_name = f"{input.params['n']}Particles-{input.params['k']}stiffness-{input.params['c']:.3f}dampingC-" \
-               f"{input.params['dt']}timestep-{t_vector[-1]:.1f}s.jpeg"
-    plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
+    # plt.plot(position, 'b')
+    # plt.plot(t_vector, exact.y[0], 'g--')
+    # # plt.plot(t_vector, decay)
+    # # plt.plot(t_vector, corrected, 'k--')
+    # # plt.plot(t_vector, np.array(position2["x"]))
+    # plt.xlabel("time [s]")
+    # plt.ylabel("position [m]")
+    # plt.title(f"Simulation of critically damped harmonic oscillator, without external loads. h = {input.params['dt']} s,"
+    #           f" k = {input.params['k']} N/m, c = {input.params['c']:.1f} N s/m")
+    # plt.legend(["PS simulation", "Exact solution"])
+    # plt.grid()
+    #
+    # # saving resulting figure
+    # figure = plt.gcf()
+    # figure.set_size_inches(8.3, 5.8)  # set window to size of a3 paper
+    #
+    # # Not sure if this is the smartest way to automate saving results relative to other users directories
+    # file_path = sys.path[1] + "/Msc_Alexander_Batchelor/code_Verification/verification_results/damping_force/"
+    # img_name = f"{input.params['n']}Particles-{input.params['k']}stiffness-{input.params['c']:.3f}dampingC-" \
+    #            f"{input.params['dt']}timestep-{t_vector[-1]:.1f}s.jpeg"
+    # plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
 
     # separate plot for system energy
-    plt.figure()
-    fig = norm_energy.plot()
-    sys_en.plot(ax=fig)
-    plt.xlabel("time [s]")
-    plt.ylabel("energy [j]")
-    plt.title("System energy for test case damping force, normalized for initial system energy")
-    plt.legend(["Normalized system energy over time", "new module"])
-    plt.grid()
-    plt.show()
+    # plt.figure()
+    # fig = norm_energy.plot()
+    # sys_en.plot(ax=fig)
+    # plt.xlabel("time [s]")
+    # plt.ylabel("energy [j]")
+    # plt.title("System energy for test case damping force, normalized for initial system energy")
+    # plt.legend(["Normalized system energy over time", "new module"])
+    # plt.grid()
+    # plt.show()
+    #
+    # plt.show()
 
+    # plot including kinetic damped system
+    plt.figure()
+
+    plt.plot(position, 'b', lw=3)
+    plt.plot(t_vector[:x_length], exact.y[0], 'g--')
+    plt.plot(t_vector, np.array(position2["x"]), 'r--')
+    plt.plot(t_vector, np.array(position3["x"]), 'orange', ls='--')
+    plt.xlabel("time [s]")
+    plt.ylabel("position [m]")
+    plt.title(f"Simulation of critically damped harmonic oscillator, without external loads. h = {input.params['dt']} s,"
+              f" k = {input.params['k']} N/m, c = {input.params['c']:.1f} N s/m")
+    plt.grid()
+
+    plt.legend(["PS simulation", "Exact solution", "Kinetic damping w/o q-correction",
+                "Kinetic damping with q-correction"])
+
+    plt.show()
     plt.show()
     return
 
@@ -191,6 +235,7 @@ def plot(psystem: ParticleSystem, psystem2:ParticleSystem):          # visualiza
 if __name__ == "__main__":
     ps = instantiate_ps()
     ps2 = instantiate_ps()
+    ps3 = instantiate_ps()
 
-    plot(ps, ps2)
+    plot(ps, ps2, ps3)
 

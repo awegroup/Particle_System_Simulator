@@ -8,8 +8,10 @@ import tether_longitudal_oscillations_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
+import time
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 from Msc_Alexander_Batchelor.src.AnalysisModules.SystemEnergy import system_energy
+
 
 def instantiate_ps():
     return ParticleSystem(input.c_matrix, input.init_cond, input.params)
@@ -51,9 +53,9 @@ def exact_solution(t_vector: npt.ArrayLike):
     return exact_x, decay
 
 
-def plot(psystem: ParticleSystem):
+def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSystem):
     n = input.params['n']
-    t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
+    t_vector = np.linspace(0, input.params["t_steps"] * input.params["dt"], input.params["t_steps"]+1)
 
     x = {}
     v = {}
@@ -75,15 +77,36 @@ def plot(psystem: ParticleSystem):
 
     m = [input.init_cond[i][-2] for i in range(n)]
     f_ext = np.array([[0, 0, -g * m[i]] for i in range(n)]).flatten()
+    f_check = f_ext.copy()
+    f_check[:3] = 0
+    m = np.array([[input.init_cond[i][-2] for j in range(3)] for i in range(n)]).flatten()
+    m = np.diag(m)
 
+    start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
-        sys_energy.loc[step] = system_energy(psystem, input.params, v_prev)
-        x_next, v_next = psystem.simulate(f_ext)
+        if step == 0:
+            x, v = psystem.x_v_current
+            position.loc[step], velocity.loc[step] = x, v
+
+        # sys_energy.loc[step] = system_energy(psystem, input.params, v_prev)
+        sys_energy.loc[step] = np.matmul(np.matmul(v_prev, m), v_prev)
+
+        # x_next, v_next = psystem.simulate(f_ext)
+        x_next, v_next = psystem.kin_damp_sim(f_ext)
+        # x_next, v_next = psystem.kin_damp_sim(f_ext, q_correction=True)
+
         position.loc[step], velocity.loc[step] = x_next, v_next
         v_prev = v_next
 
+        residual_f = f_check + psystem.f_int
+        if np.linalg.norm(residual_f) <= 1e-3:
+            print("convergence criteria satisfied")
+            break
+    stop_time = time.time()
+    print(f'convergence time: {(stop_time - start_time):.4f} s')
+
     # calculating system energy over time
-    norm_energy = sys_energy / sys_energy.iloc[0]
+    norm_energy = sys_energy #/ sys_energy.iloc[0]
 
     # generating analytical solution for the same time vector
     exact, decay = exact_solution(t_vector)
@@ -93,7 +116,8 @@ def plot(psystem: ParticleSystem):
         position[f"z{i + 1}"] -= input.init_cond[i][0][-1]
         position[f"z{i + 1}"].plot()
 
-    plt.plot(t_vector, exact)
+    x_length = position["z2"].count()
+    plt.plot(t_vector[:x_length], exact.iloc[:x_length], ls='--')
 
     for i in range(n - 1):      # setting particle colors equivalent to their analytical solution
         color = plt.gca().lines[i].get_color()
@@ -101,7 +125,7 @@ def plot(psystem: ParticleSystem):
 
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
-    plt.title("Validation PS framework, longitudal oscillations of particles with Implicit Euler scheme")
+    plt.title("Benchmark 1, PS with viscous damping simulation of longitudal tether oscillations")
     plt.legend([f"displacement particle {i + 2}" for i in range(n - 1)] +
                [f"Analytical steady state pos. particle {i + 2}" for i in range(n - 1)])
     plt.grid()
@@ -120,9 +144,9 @@ def plot(psystem: ParticleSystem):
     # separate plot for system energy
     norm_energy.plot()
     plt.xlabel("time [s]")
-    plt.ylabel("energy [j]")
-    plt.title("System energy for test case damping force, normalized for initial system energy")
-    plt.legend(["Normalized system energy over time"])
+    plt.ylabel("energy [J]")
+    plt.title("Kinetic energy of longitudal oscillations benchmark system")
+    plt.legend(["kinetic energy"])
     plt.grid()
 
     plt.show()
@@ -132,5 +156,7 @@ def plot(psystem: ParticleSystem):
 
 if __name__ == "__main__":
     ps = instantiate_ps()
+    ps2 = instantiate_ps()
+    ps3 = instantiate_ps()
 
-    plot(ps)
+    plot(ps, ps2, ps3)

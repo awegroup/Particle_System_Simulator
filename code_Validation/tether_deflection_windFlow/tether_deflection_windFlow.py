@@ -85,7 +85,7 @@ def calculate_f_a(ps: ParticleSystem):
     return f_a
 
 
-def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
+def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSystem):
     n = input.params['n']
     t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
 
@@ -105,19 +105,22 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     position2 = pd.DataFrame(index=t_vector, columns=x)
     velocity2 = pd.DataFrame(index=t_vector, columns=v)
 
-    g = input.params["g"]
+    position3 = pd.DataFrame(index=t_vector, columns=x)
+    velocity3 = pd.DataFrame(index=t_vector, columns=v)
+
     n = input.params["n"]
     f_ext = np.array([[0, 0, 0] for i in range(n)]).flatten()
     f_aero = calculate_f_a(psystem)
-    # print(f_aero)
 
     start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
-        # f_aero = calculate_f_a(ps)
+        # f_aero = calculate_f_a(psystem)
 
         position.loc[step], velocity.loc[step] = psystem.simulate(f_ext + f_aero)
+        f_aero[0:3] = 0
+        f_aero[-3:] = 0
 
-        residual_f = f_aero[3:-3] - np.abs(psystem.f_int[3:-3])
+        residual_f = f_aero + psystem.f_int
         if np.linalg.norm(residual_f) <= 1e-3:
             print("Classic PS converged")
             break
@@ -125,30 +128,41 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 
     start_time2 = time.time()
     for step in t_vector:  # propagating the simulation for each timestep and saving results
-        # f_aero = calculate_f_a(ps2)
-
-        # x_next, v_next = psystem2.kin_damp_sim(f_ext + f_aero)
-        # position2.loc[step], velocity2.loc[step] = x_next[-1], v_next[-1]
+        f_aero = calculate_f_a(psystem2)
 
         position2.loc[step], velocity2.loc[step] = psystem2.kin_damp_sim(f_ext + f_aero)
+        f_aero[0:3] = 0
+        f_aero[-3:] = 0
+        residual_f = f_aero + psystem2.f_int
 
-        residual_f = f_aero[3:-3] - np.abs(psystem2.f_int[3:-3])
-        # print(np.linalg.norm(residual_f))
         if np.linalg.norm(residual_f) <= 1e-3:
-            print("Kinetic damping PS converged")
+            print("Kinetic damping without q PS converged")
             break
     stop_time2 = time.time()
 
+    start_time3 = time.time()
+    for step in t_vector:  # propagating the simulation for each timestep and saving results
+        f_aero = calculate_f_a(psystem3)
+
+        position3.loc[step], velocity3.loc[step] = psystem3.kin_damp_sim(f_ext + f_aero, q_correction=True)
+        f_aero[0:3] = 0
+        f_aero[-3:] = 0
+        residual_f = f_aero + psystem3.f_int
+
+        if np.linalg.norm(residual_f) <= 1e-3:
+            print("Kinetic damping with q PS converged")
+            break
+    stop_time3 = time.time()
+
     print(f'PS classic: {(stop_time - start_time):.4f} s')
     print(f'PS kinetic: {(stop_time2 - start_time2):.4f} s')
+    print(f'PS kinetic q: {(stop_time3 - start_time3):.4f} s')
 
     # generate animation of results, requires smarter configuration to make usable on other PCs
     # generate_animation(position, n, t_vector)
 
-    # generating analytical solution for the same time vector
-    # exact, decay = exact_solution(t_vector)
-
     # plotting & graph configuration
+    plt.figure(0)
     for i in range(n):
         position[f"x{i + 1}"].plot()
 
@@ -174,13 +188,43 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
                f"{input.params['dt']}timestep-{input.params['t_steps']}steps.jpeg"
     plt.savefig(file_path + img_name, dpi=300, bbox_inches='tight')
 
-    plt.show()
+    # plot of end state simulation vs analytical solution
+    plt.figure(1)
+    sim1x = []
+    sim1y = []
+    sim2x = []
+    sim2y = []
+    sim3x = []
+    sim3y = []
+    x_pos1 = position["x2"].count()-1
+    x_pos2 = position2["x2"].count()-1
+    x_pos3 = position3["x2"].count()-1
+    for i in range(n):
+        sim1x.append(position[f"x{i + 1}"].iloc[x_pos1])
+        sim1y.append(position[f"z{i + 1}"].iloc[x_pos1])
 
+        sim2x.append(position2[f"x{i + 1}"].iloc[x_pos2])
+        sim2y.append(position2[f"z{i + 1}"].iloc[x_pos2])
+
+        sim3x.append(position3[f"x{i + 1}"].iloc[x_pos3])
+        sim3y.append(position3[f"z{i + 1}"].iloc[x_pos3])
+
+    plt.plot(sim1x, sim1y, 'b')
+    plt.plot(sim2x, sim2y, 'r--', lw=2.5)
+    plt.plot(sim3x, sim3y, 'orange', ls='--')
+    plt.xlabel("x position [m]")
+    plt.ylabel("y position [m]")
+    plt.title(f"Found shapes of tether deflected by perpendicular windflow, n = {input.params['n']}")
+    plt.grid()
+    plt.legend(["PS with viscous damping", "PS with kinetic damping without q", "PS with kinetic damping with q"])
+    plt.show()
+    plt.show()
     return
 
 
 if __name__ == "__main__":
     ps = instantiate_ps()
     ps2 = instantiate_ps()
+    ps3 = instantiate_ps()
 
-    plot(ps, ps2)
+    plot(ps, ps2, ps3)

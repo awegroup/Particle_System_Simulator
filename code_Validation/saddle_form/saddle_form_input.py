@@ -71,15 +71,15 @@ def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: fl
 params = {
     # model parameters
     "n": 10,  # [-]       number of particles
-    "k_t": 100,  # [N/m]     spring stiffness
-    "c": 10,  # [N s/m] damping coefficient
+    "k_t": 1,  # [N/m]     spring stiffness
+    "c": 1,  # [N s/m] damping coefficient
     "L": 10,  # [m]       tether length
     "m_block": 100,  # [kg]     mass attached to end of tether
     "rho_tether": 0.1,  # [kg/m]    mass density tether
 
     # simulation settings
-    "dt": 0.01,  # [s]       simulation timestep
-    "t_steps": 100,  # [-]      number of simulated time steps
+    "dt": 0.1,  # [s]       simulation timestep
+    "t_steps": 1000,  # [-]      number of simulated time steps
     "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
     "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
     "max_iter": 1e5,  # [-]       maximum number of iterations
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         y.append(init_cond[i][0][1])
         z.append(init_cond[i][0][2])
 
-    fig = plt.figure()
+    fig= plt.figure()
     ax = fig.add_subplot(projection="3d")
 
     b = np.nonzero(np.triu(c_matrix))
@@ -128,6 +128,8 @@ if __name__ == "__main__":
         ax.plot([x[indices[0]], x[indices[1]]], [y[indices[0]], y[indices[1]]], [z[indices[0]], z[indices[1]]],
                 color='black')
 
-    # ax.plot(x, y, z, color='black')
+    # ax.plot(x, z, 'r+', zdir='y', zs=-1.5)
+    # ax.plot(y, z, 'g+', zdir='x', zs=-0.5)
+    # ax.plot(x, y, 'k+', zdir='z', zs=-1.5)
 
     plt.show()
