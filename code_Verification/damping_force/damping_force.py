@@ -34,7 +34,7 @@ def exact_solution(t_vector: npt.ArrayLike):
         print("system is overdamped")
 
     # solve as IVP
-    y0 = np.array([1, 0])
+    y0 = np.array([1, 0.5, 0.])
 
     def syst_of_diff_eq(t, y):
         A = np.array([[0, 1], [-omega**2, -gamma]])

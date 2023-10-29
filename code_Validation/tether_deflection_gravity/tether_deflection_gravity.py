@@ -104,10 +104,12 @@ def plot(psystem: ParticleSystem):
     start_time = time.time()
     for step in t_vector:           # propagating the simulation for each timestep and saving results
         # position.loc[step], velocity.loc[step] = psystem.simulate(f_ext)
-        position.loc[step], velocity.loc[step] = psystem.kin_damp_sim(f_ext)
-        # position.loc[step], velocity.loc[step] = psystem.kin_damp_sim(f_ext, q_correction=True)
+        # position.loc[step], velocity.loc[step] = psystem.kin_damp_sim(f_ext)
+        position.loc[step], velocity.loc[step] = psystem.kin_damp_sim(f_ext, q_correction=True)
 
         residual_f = f_check + psystem.f_int
+        # print(np.linalg.norm(residual_f))
+        # print(input.params)
         if np.linalg.norm(residual_f) <= 1e-3:
             print("convergence criteria satisfied")
             break
@@ -159,7 +161,8 @@ def plot(psystem: ParticleSystem):
     plt.plot(x, y)
     plt.xlabel("x position [m]")
     plt.ylabel("y position [m]")
-    plt.title(f"Analytical caternary and resulting catenary of PS with viscous damping, n = {input.params['n']}")
+    # plt.title(f"Analytical caternary and resulting catenary of PS with viscous damping, n = {input.params['n']}")
+    plt.title(f"Analytical caternary and resulting catenary of PS with kinetic damping with q correction, n = {input.params['n']}")
     plt.grid()
     plt.legend(["Simulation final state particles", "Analytical catenary"])
     plt.show()

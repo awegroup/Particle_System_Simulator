@@ -87,13 +87,19 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
         if step == 0:
             x, v = psystem.x_v_current
             position.loc[step], velocity.loc[step] = x, v
-
+            sys_energy.loc[step] = np.matmul(np.matmul(v_prev, m), v_prev)
+            f_1 = f_ext.copy()
+            v_1 = -g * np.sqrt(0.1 / (0.5 * g))
+            f_1[-3:] = [0, 0, 10 * v_1/input.params["dt"]]
+            x_next, v_next = psystem.simulate(f_1)
+            v_prev = v_next
+            continue
         # sys_energy.loc[step] = system_energy(psystem, input.params, v_prev)
         sys_energy.loc[step] = np.matmul(np.matmul(v_prev, m), v_prev)
 
         # x_next, v_next = psystem.simulate(f_ext)
-        x_next, v_next = psystem.kin_damp_sim(f_ext)
-        # x_next, v_next = psystem.kin_damp_sim(f_ext, q_correction=True)
+        # x_next, v_next = psystem.kin_damp_sim(f_ext)
+        x_next, v_next = psystem.kin_damp_sim(f_ext, q_correction=True)
 
         position.loc[step], velocity.loc[step] = x_next, v_next
         v_prev = v_next
@@ -125,7 +131,8 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
 
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
-    plt.title("Benchmark 1, PS with viscous damping simulation of longitudal tether oscillations")
+    # plt.title("Benchmark 1, PS with viscous damping simulation of longitudal tether oscillations")
+    plt.title("Benchmark 1, PS with kinetic damping simulation with q correction")
     plt.legend([f"displacement particle {i + 2}" for i in range(n - 1)] +
                [f"Analytical steady state pos. particle {i + 2}" for i in range(n - 1)])
     plt.grid()
@@ -149,6 +156,25 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     plt.legend(["kinetic energy"])
     plt.grid()
 
+    # error between analytical and steady-state positions
+    for i in range(1, n):
+        print(f"error p{i}: ", exact[f"steady_state_p{i}"].iloc[x_length-1]-position[f"z{i+1}"].iloc[x_length-1])
+
+    # frequency analysis
+
+    fourier = np.fft.fft(position[f"z{n}"].iloc[:x_length-1])
+    plt.figure(3)
+
+    T = input.params["dt"]
+    N = x_length
+    xf = np.linspace(0.0, 1.0 / (2.0 * T), N // 2)
+    yf = 2.0 / N * np.abs(fourier[:N // 2])
+    print("main frequency peak [hz]:", xf[np.where(yf == max(yf[2:]))])
+    plt.plot(xf, 2.0 / N * np.abs(fourier[:N // 2]))
+    plt.xlabel("frequency [hz]")
+    plt.ylabel("|y(f)|")
+    plt.title("fft of benchmark 1")
+    plt.grid()
     plt.show()
 
     return

@@ -219,6 +219,8 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     plt.legend(["PS with viscous damping", "PS with kinetic damping without q", "PS with kinetic damping with q"])
     plt.show()
     plt.show()
+
+    print(input.params)
     return
 
 

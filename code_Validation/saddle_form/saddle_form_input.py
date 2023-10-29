@@ -4,7 +4,7 @@ Input file for validation of PS, benchmark case where form of self-stressed sadd
 import numpy as np
 
 # grid discretization
-grid_size = 10
+grid_size = 5
 grid_length = 10
 grid_height = 5
 
@@ -46,6 +46,7 @@ def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: fl
     even = [i * orthogonal_distance for i in range(g_size)]
     uneven = [i*orthogonal_distance + 0.5*orthogonal_distance for i in range(g_size - 1)]
     x_y = [[i * orthogonal_distance, 0] for i in range(g_size)]
+
     for i in range(g_size - 1):
         x_y.extend(list(zip(uneven, [i*orthogonal_distance + 0.5*orthogonal_distance for j in range(len(uneven))])))
         x_y.extend(list(zip(even, [(i+1)*orthogonal_distance for j in range(len(even))])))
@@ -56,7 +57,7 @@ def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: fl
     z.extend(temp[1:-1])
     z.extend(reversed(temp[1:-1]))
 
-    n = grid_size ** 2 + (grid_size - 1) ** 2
+    n = g_size ** 2 + (g_size - 1) ** 2
 
     for i in range(n):
         if i in fixed_nodes:
@@ -133,3 +134,5 @@ if __name__ == "__main__":
     # ax.plot(x, y, 'k+', zdir='z', zs=-1.5)
 
     plt.show()
+
+    print(len(initial_conditions(5, 1, [0, 1, 2, 3, 4, 36, 37, 38, 39, 40, 9, 18, 27, 13, 22, 31], 5, 10)))

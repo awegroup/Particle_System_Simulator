@@ -21,14 +21,14 @@ def initial_conditions(l0: float, n: int, m_segment: float, m_block: float):
 params = {
     # model parameters
     "n": 5,                         # [-] number of particles
-    "k": 1e3,                       # [N/m] spring stiffness
-    "c": 10,                         # [N s/m] damping coefficient
-    "L": 10,                        # [m] tether length
-    "m_block": 100,                  # [kg] mass attached to end of tether
-    "rho_tether": 0.1,              # [kg/m] mass density tether
+    "k": 119575.9,                       # [N/m] spring stiffness
+    "c": 92,                         # [N s/m] damping coefficient
+    "L": 5.14,                        # [m] tether length
+    "m_block": 327.8,                  # [kg] mass attached to end of tether
+    "rho_tether": 0.012,              # [kg/m] mass density tether
 
     # simulation settings
-    "dt": 1,                    # [s] simulation timestep
+    "dt": 0.1,                    # [s] simulation timestep
     "t_steps": 1000,                # [-] number of simulated time steps
     "abs_tol": 1e-5,                # [m/s] absolute error tolerance iterative solver
     "rel_tol": 1e-4,                # [-] relative error tolerance iterative solver

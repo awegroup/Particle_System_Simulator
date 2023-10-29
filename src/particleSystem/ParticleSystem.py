@@ -46,11 +46,9 @@ class ParticleSystem:
         # Variables required for kinetic damping
         self.__w_kin = self.__calc_kin_energy()
         self.__w_kin_min1 = self.__calc_kin_energy()
-        self.__w_kin_min2 = self.__calc_kin_energy()
         self.__vis_damp = True
         self.__x_min1 = np.zeros(self.__n, )
         self.__x_min2 = np.zeros(self.__n, )
-
         return
 
     def __str__(self):
@@ -126,7 +124,7 @@ class ParticleSystem:
         self.__update_x_v(x_next, v_next)
         return x_next, v_next
 
-    def kin_damp_sim(self, f_ext: npt.ArrayLike, q_correction: bool = False):       # kinetic damping alghorithm
+    def kin_damp_sim(self, f_ext: npt.ArrayLike = (), q_correction: bool = False):       # kinetic damping alghorithm
         if self.__vis_damp:         # Condition resetting viscous damping to 0
             self.__c = 0
             self.__springdampers = []
@@ -163,7 +161,6 @@ class ParticleSystem:
 
             self.__update_x_v(x_next, v_next)
             self.__update_w_kin(0)
-
 
         return x_next, v_next
 
@@ -212,7 +209,6 @@ class ParticleSystem:
         return
 
     def __update_w_kin(self, w_kin_new: float):
-        self.__w_kin_min2 = self.__w_kin_min1
         self.__w_kin_min1 = self.__w_kin
         self.__w_kin = w_kin_new
         return

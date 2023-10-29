@@ -18,17 +18,17 @@ def initial_conditions(l0: float, n: int, m_segment: float):
 # dictionary of required parameters
 params = {
     # model parameters
-    "n": 25,                         # [-]       number of particles
+    "n": 5,                         # [-]       number of particles
     "k_t": 2933.3,                # [N/m]     spring stiffness
-    "c": 100,                         # [N s/m] damping coefficient
+    "c": 1,                         # [N s/m] damping coefficient
     "L": 300,                        # [m]       tether length
     "m_block": 100,                  # [kg]     mass attached to end of tether
     "rho_tether": 0.012,              # [kg/m]    mass density tether
 
     # simulation settings
-    "dt": 0.01,                    # [s]       simulation timestep
+    "dt": 1,                    # [s]       simulation timestep
     "t_steps": 10000,                # [-]      number of simulated time steps
-    "abs_tol": 1e-50,               # [m/s]     absolute error tolerance iterative solver
+    "abs_tol": 1e-5,               # [m/s]     absolute error tolerance iterative solver
     "rel_tol": 1e-5,                # [-]       relative error tolerance iterative solver
     "max_iter": 1e5,                # [-]       maximum number of iterations
 
@@ -47,3 +47,4 @@ params["k"] = params["k_t"] * (params["n"] - 1)           # segment stiffness
 # instantiate connectivity matrix and initial conditions array
 c_matrix = connectivity_matrix(params['n'])
 init_cond = initial_conditions(params["l0"], params["n"], params["m_segment"])
+
