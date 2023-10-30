@@ -11,23 +11,26 @@ from scipy.sparse.linalg import bicgstab
 
 class ParticleSystem:
     def __init__(self, connectivity_matrix: npt.ArrayLike, initial_conditions: npt.ArrayLike,
-                 sim_param: dict):
+                 element_param: npt.ArrayLike, sim_param: dict):
         """
         Constructor for ParticleSystem object, model made up of n particles
-        :param connectivity_matrix: sparse n-by-n matrix, where an 1 at index (i,j) means
-                                    that particle i and j are connected
-        :param initial_conditions: Array of n arrays to instantiate particles. Each array must contain the information
-                                   required for the particle constructor: [initial_pos, initial_vel, mass, fixed: bool]
-        :param sim_param: Dictionary of other parameters required (k, l0, dt, ...)
+        :param connectivity_matrix: 2-by-m matrix, where each column contains a nodal index pair that is connected
+                                    by a spring element.
+        :param initial_conditions:  Array of n arrays to instantiate particles. Each subarray must contain the params
+                                    required for the particle constructor: [initial_pos, initial_vel, mass, fixed: bool]
+        :param element_params:      Array of m arrays to instantiate elements. Each subarray must contain the remaining
+                                    params required for the element constructor: [k, l0, c, compressive_resistant, ...]
+                                    # note: could change depending on what element types are added in the future.
+        :param sim_param:           Dictionary of other parameters required for simulation (dt, rtol, ...)
         """
         self.__connectivity_matrix = np.array(connectivity_matrix)
-        self.__k = sim_param["k"]
-        self.__l0 = sim_param["l0"]
-        self.__c = sim_param["c"]
-        self.__dt = sim_param["dt"]
-        self.__g = sim_param["g"]
-        self.__n = sim_param["n"]
+        self.__element_param = np.array(element_param)
+        # self.__k = sim_param["k"]           # element/edge matrix
+        # self.__l0 = sim_param["l0"]
+        # self.__c = sim_param["c"]
 
+        self.__n = len(initial_conditions)
+        self.__dt = sim_param["dt"]
         self.__rtol = sim_param["rel_tol"]
         self.__atol = sim_param["abs_tol"]
         self.__maxiter = sim_param["max_iter"]
@@ -71,11 +74,13 @@ class ParticleSystem:
         return
 
     def __instantiate_springdampers(self):
-        b = np.nonzero(np.triu(self.__connectivity_matrix))
-        self.__b = np.column_stack((b[0], b[1]))
-        for index in self.__b:
-            self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]],
-                                        self.__k, self.__l0, self.__c, self.__dt))
+        for i, index in enumerate(self.__connectivity_matrix):
+            k = self.__element_param[i][0]
+            l0 = self.__element_param[i][1]
+            c = self.__element_param[i][2]
+            self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]], k, l0, c))
+            # self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]],
+            #                             self.__k, self.__l0, self.__c, self.__dt))
         return
 
     def __construct_m_matrix(self):
@@ -88,11 +93,11 @@ class ParticleSystem:
 
     def __calc_kin_energy(self):
         v = self.__pack_v_current()
-        w_kin = np.matmul(np.matmul(v, self.__m_matrix), v)      # Kinetic energy, 0.5 constant can be neglected
+        w_kin = np.matmul(np.matmul(v, self.__m_matrix), v.T)      # Kinetic energy, 0.5 constant can be neglected
         return w_kin
 
     def simulate(self, f_external: npt.ArrayLike = ()):
-        if not len(f_external):
+        if not len(f_external):             # check if external force is passed as argument, otherwise use 0 vector
             f_external = np.zeros(self.__n * 3, )
         f = self.__one_d_force_vector() + f_external
 
@@ -105,7 +110,7 @@ class ParticleSystem:
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
         b = self.__dt * f + self.__dt ** 2 * np.matmul(jx, v_current)
 
-        # checking conditioning of A and b
+        # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
 
         for i in range(self.__n):
@@ -117,6 +122,7 @@ class ParticleSystem:
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
 
+        # numerical time integration following implicit Euler scheme
         v_next = v_current + dv
         x_next = x_current + self.__dt * v_next
 
@@ -124,7 +130,7 @@ class ParticleSystem:
         self.__update_x_v(x_next, v_next)
         return x_next, v_next
 
-    def kin_damp_sim(self, f_ext: npt.ArrayLike = (), q_correction: bool = False):       # kinetic damping alghorithm
+    def kin_damp_sim(self, f_ext: npt.ArrayLike = (), q_correction: bool = False):       # kinetic damping algorithm
         if self.__vis_damp:         # Condition resetting viscous damping to 0
             self.__c = 0
             self.__springdampers = []
@@ -174,11 +180,11 @@ class ParticleSystem:
         self.__f[self.__f != 0] = 0
 
         for n in range(len(self.__springdampers)):
-            fs, fd = self.__springdampers[n].force_value()
-            i, j = self.__b[n]
+            f_int = self.__springdampers[n].force_value()
+            i, j = self.__connectivity_matrix[n]
 
-            self.__f[i*3: i*3 + 3] += fs + fd
-            self.__f[j*3: j*3 + 3] -= fs + fd
+            self.__f[i*3: i*3 + 3] += f_int
+            self.__f[j*3: j*3 + 3] -= f_int
 
         return self.__f
 
@@ -188,7 +194,7 @@ class ParticleSystem:
 
         for n in range(len(self.__springdampers)):
             jx, jv = self.__springdampers[n].calculate_jacobian()
-            i, j = self.__b[n]
+            i, j = self.__connectivity_matrix[n]
 
             self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
             self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
@@ -219,22 +225,22 @@ class ParticleSystem:
         return
 
     @property
-    def particles(self):            # Temporary solution to calculate external aerodynamic forces
+    def particles(self):            # @property decorators required, as PS info might be required for external calcs
         return self.__particles
 
     @property
     def springdampers(self):
         return self.__springdampers
 
-    @property
-    def stiffness_m(self):
-        self.__system_jacobians()
-        return self.__jx
+    # @property
+    # def stiffness_m(self):
+    #     self.__system_jacobians()
+    #     return self.__jx
 
     @property
     def f_int(self):
         f_int = self.__f.copy()
-        for i in range(len(self.__particles)):
+        for i in range(len(self.__particles)):      # need to exclude fixed particles for force-based convergence
             if self.__particles[i].fixed:
                 f_int[i*3:(i+1)*3] = 0
 

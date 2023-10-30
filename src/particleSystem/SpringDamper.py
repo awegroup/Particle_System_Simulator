@@ -8,11 +8,11 @@ import numpy as np
 
 class SpringDamper(ImplicitForce):
 
-    def __init__(self, p1: Particle, p2: Particle, k: float, l0: float, c: float, dt: float):
+    def __init__(self, p1: Particle, p2: Particle, k: float, l0: float, c: float, compressive_resistant: bool = True):
         self.__k = k
         self.__c = c
         self.__l0 = l0
-        self.__dt = dt
+        self.__compressive_resistant = compressive_resistant
         super().__init__(p1, p2)
         return
 
@@ -28,7 +28,10 @@ class SpringDamper(ImplicitForce):
         return np.array([self.p1.v - self.p2.v])
 
     def force_value(self):
-        return self.__calculate_f_spring(), self.__calculate_f_damping()
+        if self.__compressive_resistant:
+            return self.__calculate_f_spring() + self.__calculate_f_damping()
+        elif not self.__compressive_resistant:
+            pass                            # room for future addition of varying element types
 
     def __calculate_f_spring(self):
         relative_pos = self.__relative_pos()

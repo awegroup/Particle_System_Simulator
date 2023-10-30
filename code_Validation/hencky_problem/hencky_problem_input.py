@@ -1,10 +1,9 @@
 """
 Input file for validation of PS, Hencky problem
 """
-import itertools
 import numpy as np
 
-filename = 'untitled.msh'       # mesh file
+filename = 'hencky_mesh.msh'       # mesh file
 
 # Matlab code to calculate value of b_0, as Python's sympy library is way too slow to calculate numeric values:
 """
@@ -33,6 +32,7 @@ b_0 = 1.6204
 r = 0.1425          # [m] radius circular membrane
 p = 100             # [kPa] uniform transverse pressure
 E_t = 311488        # [N/m] Young's modules membrane material
+d = 0.01            # [m] Membrane thickness
 
 q = p*r/E_t
 
@@ -55,15 +55,16 @@ def analytical_solution(a_n, radius, loading_param):
     series = 0
     c = np.linspace(0, r, 16)
     w = []
+
     for coordinate in c:
         for i in range(0, 11):
             series += a_n[i] * (1 - (coordinate/radius) ** (2*i + 2))
         w.append(loading_param ** (1/3) * series)
 
-    return w
+    return w, c
 
 
-def cm_and_ic(mesh_file, m):
+def cm_and_ic(mesh_file, m, E, c):
     coordinates = []
     connections = []
     fixed = 20          # write automation later when I have more experience with the formatting of .msh files
@@ -83,7 +84,7 @@ def cm_and_ic(mesh_file, m):
                     coordinate = lines[i + j].split()
                     coordinates.append([float(coordinate[i]) for i in range(3)])
 
-        if line.startswith("$Elements"):    # retrieve connectivity matrix
+        if line.startswith("$Elements"):    # retrieve nodal connections
             entity_bloc, nodes_total, min_node_tag, max_node_tag = lines[i + 1].split()
             total_lines = int(entity_bloc) + int(nodes_total) + 2
 
@@ -92,26 +93,48 @@ def cm_and_ic(mesh_file, m):
                     connection = lines[i + j].split()
                     connections.append([int(connection[i]) for i in range(1, len(connection))])
 
-    i_c = []                    # construct initial conditions matrix
+    i_c = []                    # construct initial conditions matrix: [x, v, m, fixed]
     for i in range(n):
         if i < fixed:
             i_c.append([coordinates[i], [0, 0, 0], m, True])
         else:
             i_c.append([coordinates[i], [0, 0, 0], m, False])
 
-    c_m = np.zeros((n, n))      # construct connectivity matrix
+    c_m = []                    # construct connectivity matrix: [[index p1, index p2], ...]
     for element in connections:
         for i in range(len(element)):
             if i + 1 == len(element):
-                i1, i2 = element[i], element[0]
+                c_m.append([element[i]-1, element[0]-1])
             else:
-                i1, i2 = element[i], element[i+1]
-            c_m[i1 - 1, i2 - 1] += 1
-            c_m[i2 - 1, i1 - 1] += 1
+                c_m.append([element[i]-1, element[i+1]-1])
+    c_m = list(set(tuple(sorted(pair)) for pair in c_m))
+    c_m = [list(pair) for pair in c_m if pair[0] != pair[1]]
 
-    c_m[c_m > 1] = 1  # remove double connections
+    e_p = []                    # construct element parameter array: [k, l0, c]
+    for nodes in c_m:
+        node1, node2 = nodes[0], nodes[1]
+        A = 0
+        for element in connections:
+            if node1+1 in element and node2+1 in element and len(element) > 2:
+                p1 = np.array(i_c[element[0]-1][0])
+                p2 = np.array(i_c[element[1]-1][0])
+                p3 = np.array(i_c[element[2]-1][0])
 
-    return c_m, i_c
+                v1 = p2 - p1
+                v2 = p3 - p2
+
+                normal_vector = np.cross(v1, v2)
+                area = np.linalg.norm(normal_vector) / 2.0
+                A += 0.5*area
+        l0 = np.linalg.norm(np.array(i_c[node1][0]) - np.array(i_c[node2][0]))
+        A = np.sqrt(A)
+        # A = A*d
+        k = E*A/l0
+        # print(k)
+        e_p.append([k, l0, c])
+
+    connections = np.array([connection for connection in connections if len(connection) == 4])-1
+    return c_m, i_c, e_p, n, connections
 
 
 # dictionary of required parameters
@@ -125,7 +148,7 @@ params = {
     "rho_tether": 0.1,  # [kg/m]    mass density tether
 
     # simulation settings
-    "dt": 0.1,  # [s]       simulation timestep
+    "dt": 0.01,  # [s]       simulation timestep
     "t_steps": 1000,  # [-]      number of simulated time steps
     "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
     "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
@@ -142,12 +165,11 @@ params = {
 # calculated parameters
 params["l0"] = 0#np.sqrt( 2 * (grid_length/(grid_size-1))**2)
 params["m_segment"] = 1
-params["k"] = params["k_t"] * (params["n"] - 1)  # segment stiffness
-params["n"] = 0
+params["k"] = E_t*d
 
 
 # instantiate connectivity matrix and initial conditions array
-c_matrix, init_cond = cm_and_ic(filename, 1)
+c_matrix, init_cond, element_param, params["n"], element_list = cm_and_ic(filename, 1, E_t, params["c"])
 
 # print(init_cond)
 
@@ -164,20 +186,27 @@ if __name__ == "__main__":
 
     fig= plt.figure()
     ax = fig.add_subplot(projection="3d")
+    labels = ['Mesh particle', 'Mesh spring damper element', 'Analytical solution']
+    handles = []
+    nodes = ax.scatter(x, y, z, c='red', label=labels[0])
+    handles.append(nodes)
+    for i, indices in enumerate(c_matrix):
+        line = ax.plot([x[indices[0]], x[indices[1]]], [y[indices[0]], y[indices[1]]], [z[indices[0]], z[indices[1]]],
+                color='black', label=labels[1])
+        if i == 0:
+            handles.append(line[0])
 
-    b = np.nonzero(np.triu(c_matrix))
-    b = np.column_stack((b[0], b[1]))
+    deflection, radial_distance = analytical_solution(a, r, q)
 
-    ax.scatter(x, y, z, c='red')
-    for indices in b:
-        ax.plot([x[indices[0]], x[indices[1]]], [y[indices[0]], y[indices[1]]], [z[indices[0]], z[indices[1]]],
-                color='black')
+    circle = np.linspace(0, 2*np.pi, 361)
+    for i, distance in enumerate(radial_distance):
+        x = np.cos(circle)*abs(distance-np.max(radial_distance))
+        y = np.sin(circle)*abs(distance-np.max(radial_distance))
+        z = np.ones(len(x),)*deflection[i]
+        line = ax.plot(x, y, z, color='green', label=labels[2])
+        if i == 0:
+            handles.append(line[0])
 
-    # ax.plot(x, z, 'r+', zdir='y', zs=-1.5)
-    # ax.plot(y, z, 'g+', zdir='x', zs=-0.5)
-    # ax.plot(x, y, 'k+', zdir='z', zs=-1.5)
-
+    ax.legend(handles, labels)
+    plt.title("Hencky problem")
     plt.show()
-
-    deflection = analytical_solution(a, r, q)
-
