@@ -77,14 +77,18 @@ class SpringDamper(ImplicitForce):
             return self.__calculate_f_spring() + self.__calculate_f_damping()
         
         elif self.__linktype == SpringDamperType.NONCOMPRESSIVE:
-            relative_pos = self.__relative_pos()
-            if relative_pos >=self.l0:
+            l = np.linalg.norm(self.__relative_pos())
+            if l >=self.l0:
                 return self.__calculate_f_spring() + self.__calculate_f_damping()
             else:
                 return np.array([0, 0, 0])
             
-        else:
-            pass #TODO Implement nontensile members
+        elif self.__linktype == SpringDamperType.NONTENSILE:
+            l = np.linalg.norm(self.__relative_pos())
+            if l <=self.l0:
+                return self.__calculate_f_spring() + self.__calculate_f_damping()
+            else:
+                return np.array([0, 0, 0])
 
     def __calculate_f_spring(self):
         relative_pos = self.__relative_pos()
@@ -114,6 +118,19 @@ class SpringDamper(ImplicitForce):
     def calculate_jacobian(self):
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
+
+        # Using guard classes to return early in special cases
+        if (
+                self.__linktype == SpringDamperType.NONCOMPRESSIVE and
+                norm_pos <= self.__l0
+            ):
+            return np.zeros(3)
+        
+        elif (
+                self.__linktype == SpringDamperType.NONTENSILE and
+                norm_pos >= self.__l0
+            ):
+            return np.zeros(3)
 
         if norm_pos != 0:
             unit_vector = relative_pos / norm_pos
