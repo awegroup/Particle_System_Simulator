@@ -4,8 +4,8 @@ ParticleSystem framework
 """
 import numpy as np
 import numpy.typing as npt
-from Msc_Alexander_Batchelor.src.particleSystem.Particle import Particle
-from Msc_Alexander_Batchelor.src.particleSystem.SpringDamper import SpringDamper
+from src.particleSystem.Particle import Particle
+from src.particleSystem.SpringDamper import SpringDamper
 from scipy.sparse.linalg import bicgstab
 
 

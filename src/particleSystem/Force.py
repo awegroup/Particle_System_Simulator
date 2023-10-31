@@ -1,7 +1,7 @@
 """
 Child Abstract Base Class 'Force', for force objects to be instantiated in ParticleSystem
 """
-from Msc_Alexander_Batchelor.src.particleSystem.SystemObject import SystemObject
+from src.particleSystem.SystemObject import SystemObject
 from abc import abstractmethod
 
 
