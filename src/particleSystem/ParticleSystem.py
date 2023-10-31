@@ -5,13 +5,15 @@ ParticleSystem framework
 import numpy as np
 import numpy.typing as npt
 from src.particleSystem.Particle import Particle
-from src.particleSystem.SpringDamper import SpringDamper
+from src.particleSystem.SpringDamper import SpringDamper 
 from scipy.sparse.linalg import bicgstab
 
 
 class ParticleSystem:
-    def __init__(self, connectivity_matrix: npt.ArrayLike, initial_conditions: npt.ArrayLike,
-                 element_param: npt.ArrayLike, sim_param: dict):
+    def __init__(self, 
+                 connectivity_matrix: list, 
+                 initial_conditions: npt.ArrayLike, 
+                 sim_param: dict):
         """
         Constructor for ParticleSystem object, model made up of n particles
         :param connectivity_matrix: 2-by-m matrix, where each column contains a nodal index pair that is connected
@@ -23,11 +25,7 @@ class ParticleSystem:
                                     # note: could change depending on what element types are added in the future.
         :param sim_param:           Dictionary of other parameters required for simulation (dt, rtol, ...)
         """
-        self.__connectivity_matrix = np.array(connectivity_matrix)
-        self.__element_param = np.array(element_param)
-        # self.__k = sim_param["k"]           # element/edge matrix
-        # self.__l0 = sim_param["l0"]
-        # self.__c = sim_param["c"]
+        self.__connectivity_matrix = connectivity_matrix
 
         self.__n = len(initial_conditions)
         self.__dt = sim_param["dt"]
@@ -64,7 +62,7 @@ class ParticleSystem:
             n += 1
         return ""
 
-    def __instantiate_particles(self, initial_conditions):
+    def __instantiate_particles(self, initial_conditions: list):
         for set_of_initial_cond in initial_conditions:
             x = set_of_initial_cond[0]
             v = set_of_initial_cond[1]
@@ -74,14 +72,24 @@ class ParticleSystem:
         return
 
     def __instantiate_springdampers(self):
-        for i, index in enumerate(self.__connectivity_matrix):
-            k = self.__element_param[i][0]
-            l0 = self.__element_param[i][1]
-            c = self.__element_param[i][2]
-            self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]], k, l0, c))
-            # self.__springdampers.append(SpringDamper(self.__particles[index[0]], self.__particles[index[1]],
-            #                             self.__k, self.__l0, self.__c, self.__dt))
+        for link in self.__connectivity_matrix:
+            link = link.copy() #needed to not override the __connectivity_matrix
+            link[0] = self.__particles[link[0]]
+            link[1] = self.__particles[link[1]]
+            self.__springdampers.append(SpringDamper(*link))
         return
+    
+    def stress_self(self, factor: float = 0):
+        """Set all node lengths to zero to homogenously stress mesh"""
+        if factor == 0:
+            for link in self.springdampers:
+                link.l0 = 0
+        else:
+            for link in self.springdampers:
+                link.l0 *= factor 
+                
+        return
+        
 
     def __construct_m_matrix(self):
         matrix = np.zeros((self.__n * 3, self.__n * 3))
@@ -181,7 +189,7 @@ class ParticleSystem:
 
         for n in range(len(self.__springdampers)):
             f_int = self.__springdampers[n].force_value()
-            i, j = self.__connectivity_matrix[n]
+            i, j, *_ = self.__connectivity_matrix[n]
 
             self.__f[i*3: i*3 + 3] += f_int
             self.__f[j*3: j*3 + 3] -= f_int
@@ -194,7 +202,7 @@ class ParticleSystem:
 
         for n in range(len(self.__springdampers)):
             jx, jv = self.__springdampers[n].calculate_jacobian()
-            i, j = self.__connectivity_matrix[n]
+            i, j, *_ = self.__connectivity_matrix[n]
 
             self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
             self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
@@ -252,10 +260,6 @@ class ParticleSystem:
 
 
 if __name__ == "__main__":
-
-    c_matrix = [[0, 1], [1, 0]]
-    init_cond = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 0], [0, 0, 0], 1, False]]
-
     params = {
         # model parameters
         "n": 2,  # [-] number of particles
@@ -273,8 +277,11 @@ if __name__ == "__main__":
         # physical parameters
         "g": 9.81           # [m/s^2] gravitational acceleration
     }
+    c_matrix = [[0, 1, params['k'], params['c'] ]]
+    init_cond = [[[0, 0, 0], [0, 0, 0], 1, True],
+                 [[0, 0, 0], [0, 0, 0], 1, False]]
+
 
     ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
-    print(ps.system_energy)
     pass

@@ -2,22 +2,26 @@
 Script for PS framework validation, benchmark case where saddle form of self stressed network is sought
 """
 import numpy as np
-import saddle_form_input as input
+import code_Validation.saddle_form.saddle_form_input as input
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import pandas as pd
 import time
-from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
+from src.particleSystem.ParticleSystem import ParticleSystem
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.connections, input.init_cond, input.params)
 
 
 def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
+    
+    psystem.stress_self()
+    psystem2.stress_self()
+
     n = input.params['n']
     t_vector = np.linspace(input.params["dt"], input.params["t_steps"] * input.params["dt"], input.params["t_steps"])
-
+    
     x = {}
     for i in range(n):
         x[f"x{i + 1}"] = np.zeros(len(t_vector))
@@ -68,8 +72,6 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
     ax = fig.add_subplot(1, 2, 1, projection="3d")
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
 
-    b = np.nonzero(np.triu(input.c_matrix))
-    b = np.column_stack((b[0], b[1]))
 
     # data from final timestep
     X_f = []
@@ -82,15 +84,15 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 
     # plot inital layout
     ax.scatter(X, Y, Z, c='red')
-    for indices in b:
-        ax.plot([X[indices[0]], X[indices[1]]], [Y[indices[0]], Y[indices[1]]], [Z[indices[0]], Z[indices[1]]],
+    for i, j, *_ in input.connections:
+        ax.plot([X[i], X[j]], [Y[i], Y[j]], [Z[i], Z[j]],
                 color='black')
 
     # plot final found shape
     ax2.scatter(X_f, Y_f, Z_f, c='red')
-    for indices in b:
-        ax2.plot([X_f[indices[0]], X_f[indices[1]]], [Y_f[indices[0]], Y_f[indices[1]]], [Z_f[indices[0]],
-                Z_f[indices[1]]], color='black')
+    for i, j, *_ in input.connections:
+        ax2.plot([X_f[i], X_f[j]], [Y_f[i], Y_f[j]], [Z_f[i], Z_f[j]],
+                color='black')
 
     # surf = ax.plot_surface(X, Y, Z)#, rstride=1, cstride=1, cmap=cm.coolwarm,linewidth=0, antialiased=False)
 

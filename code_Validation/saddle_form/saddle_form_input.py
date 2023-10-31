@@ -9,7 +9,7 @@ grid_length = 10
 grid_height = 5
 
 
-def connectivity_matrix(grid_size: int):
+def connectivity_matrix(grid_size: int, params: dict):
     n = grid_size ** 2 + (grid_size - 1) ** 2
     top_edge = [i for i in range(grid_size)]
     bottom_edge = [n - grid_size + i for i in range(grid_size)]
@@ -22,20 +22,23 @@ def connectivity_matrix(grid_size: int):
     # inner grid connections
     for i in range(n):
         if i not in fixed_nodes:
-            connections.append([i, i - grid_size])
-            connections.append([i, i - grid_size + 1])
-            connections.append([i, i + grid_size - 1])
-            connections.append([i, i + grid_size])
+            connections.append([i, i - grid_size, params['k'],params['c']])
+            connections.append([i, i - grid_size + 1, params['k'],params['c']])
+            connections.append([i, i + grid_size - 1, params['k'],params['c']])
+            connections.append([i, i + grid_size, params['k'],params['c']])
+    
+    # Filtering duplicates
+    filtered_connections = []
+    for link in connections:
+        inverted_link = [link[1],link[0], *link[2:]]
+        if (
+                inverted_link not in filtered_connections and
+                link not in filtered_connections
+            ):
+            filtered_connections.append(link)
+    print(f"Filtered connections from {len(connections)} down to {len(filtered_connections)}")
+    return filtered_connections, fixed_nodes
 
-    matrix = np.zeros((n, n))
-
-    for indices in connections:                 # enter connections at correct index in matrix
-        matrix[indices[0], indices[1]] += 1
-        matrix[indices[1], indices[0]] += 1
-
-    matrix[matrix > 1] = 1                      # remove double connections
-
-    return matrix, fixed_nodes
 
 
 def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: float, g_l: float):
@@ -101,7 +104,7 @@ params["n"] = grid_size ** 2 + (grid_size - 1) ** 2
 
 
 # instantiate connectivity matrix and initial conditions array
-c_matrix, f_nodes = connectivity_matrix(grid_size)
+connections, f_nodes = connectivity_matrix(grid_size, params)
 init_cond = initial_conditions(grid_size, params["m_segment"], f_nodes, grid_height, grid_length)
 
 # print(init_cond)
@@ -121,12 +124,10 @@ if __name__ == "__main__":
     fig= plt.figure()
     ax = fig.add_subplot(projection="3d")
 
-    b = np.nonzero(np.triu(c_matrix))
-    b = np.column_stack((b[0], b[1]))
 
     ax.scatter(x, y, z, c='red')
-    for indices in b:
-        ax.plot([x[indices[0]], x[indices[1]]], [y[indices[0]], y[indices[1]]], [z[indices[0]], z[indices[1]]],
+    for i, j, *_ in connections:
+        ax.plot([x[i], x[j]], [y[i], y[j]], [z[i], z[j]],
                 color='black')
 
     # ax.plot(x, z, 'r+', zdir='y', zs=-1.5)

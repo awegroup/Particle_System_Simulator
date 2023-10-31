@@ -35,7 +35,8 @@ class SpringDamper(ImplicitForce):
     #TODO one line summary
     
     
-    
+    Attributes: #TODO finish this
+        
     """
     def __init__(self, p1: Particle, p2: Particle, k: float, c: float, linktype=SpringDamperType.DEFAULT):
         """Initializes the spring damper
@@ -55,15 +56,15 @@ class SpringDamper(ImplicitForce):
         super().__init__(p1, p2)
         self.__k = k
         self.__c = c
-        self.__l0 = self.__relative_pos()
+        self.__l0 = np.linalg.norm(self.__relative_pos())
         self.__linktype = linktype
         return
 
     def __str__(self):
-        return f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.__l0}\n" \
+        return f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.l0}\n" \
                f"Damping coefficient [N s/m]: {self.__c}\n" \
                f"Assigned particles\n  p1: {self.p1}\n  p2: {self.p2}\n"\
-               f"Link type: {self.__damper_type}"
+               f"Link type: {self.__linktype}"
 
     def __relative_pos(self):
         return np.array([self.p1.x - self.p2.x])
@@ -77,7 +78,7 @@ class SpringDamper(ImplicitForce):
         
         elif self.__linktype == SpringDamperType.NONCOMPRESSIVE:
             relative_pos = self.__relative_pos()
-            if relative_pos >=self.__l0:
+            if relative_pos >=self.l0:
                 return self.__calculate_f_spring() + self.__calculate_f_damping()
             else:
                 return np.array([0, 0, 0])
@@ -94,7 +95,7 @@ class SpringDamper(ImplicitForce):
         else:
             unit_vector = np.array([0, 0, 0])
 
-        f_spring = -self.__k * (norm_pos - self.__l0) * unit_vector
+        f_spring = -self.__k * (norm_pos - self.l0) * unit_vector
         return np.squeeze(f_spring)
 
     def __calculate_f_damping(self):
@@ -122,11 +123,19 @@ class SpringDamper(ImplicitForce):
 
         i = np.identity(3)
         T = np.matmul(np.transpose(unit_vector), unit_vector)
-        jx = -self.__k * ((self.__l0 / norm_pos - 1) * (T - i) + T)
+        jx = -self.__k * ((self.l0 / norm_pos - 1) * (T - i) + T)
 
         jv = -self.__c*i
 
         return jx, jv
+    
+    @property
+    def l0(self):
+        return self.__l0
+    
+    @l0.setter
+    def l0(self,value): # Exposed in order to enable self-stressing of mesh
+        self.__l0 = value
 
 
 if __name__ == "__main__":
