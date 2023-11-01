@@ -140,9 +140,9 @@ class ParticleSystem:
 
     def kin_damp_sim(self, f_ext: npt.ArrayLike = (), q_correction: bool = False):       # kinetic damping algorithm
         if self.__vis_damp:         # Condition resetting viscous damping to 0
+            for link in self.__springdampers:
+                link.c = 0
             self.__c = 0
-            self.__springdampers = []
-            self.__instantiate_springdampers()
             self.__vis_damp = False
 
         if len(f_ext):              # condition checking if an f_ext is passed as argument

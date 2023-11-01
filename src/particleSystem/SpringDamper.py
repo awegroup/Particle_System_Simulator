@@ -151,8 +151,16 @@ class SpringDamper(ImplicitForce):
         return self.__l0
     
     @l0.setter
-    def l0(self,value): # Exposed in order to enable self-stressing of mesh
+    def l0(self,value): # Exposed to enable self-stressing of mesh
         self.__l0 = value
+
+    @property
+    def c(self):
+        return self.__c
+    
+    @c.setter
+    def c(self,value): # Exposed to enable resetting when using kinetic damping
+        self.__c = value
 
 
 if __name__ == "__main__":
