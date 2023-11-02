@@ -7,6 +7,8 @@ import numpy.typing as npt
 from src.particleSystem.Particle import Particle
 from src.particleSystem.SpringDamper import SpringDamper 
 from scipy.sparse.linalg import bicgstab
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 
 class ParticleSystem:
@@ -259,6 +261,39 @@ class ParticleSystem:
         return self.__pack_x_current(), self.__pack_v_current()
 
 
+    def plot(self):
+        """"Plots current system configuration
+        
+        # TODO matplotlib styleguide recommends that helper functions take ax as an argument
+        """
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        
+        fixlist = []
+        freelist = []
+        for particle in self.__particles:
+            if particle.fixed:
+                fixlist.append(particle.x)
+            else:
+                freelist.append(particle.x)
+                
+        fixlist = np.array(fixlist)
+        freelist = np.array(freelist)
+        
+        ax.scatter(fixlist[:,0],fixlist[:,1],fixlist[:,2], color = 'red', marker = 'o')
+        ax.scatter(freelist[:,0],freelist[:,1],freelist[:,2], color = 'blue', marker = 'o', s =5)
+        
+        segments = []
+        
+        for link in self.__springdampers:
+            segments.append(link.line_segment())
+            
+        lc = Line3DCollection(segments, colors = 'black', linewidths = 0.5)  
+        ax.add_collection3d(lc)
+        
+        return ax
+
 if __name__ == "__main__":
     params = {
         # model parameters
@@ -279,9 +314,10 @@ if __name__ == "__main__":
     }
     c_matrix = [[0, 1, params['k'], params['c'] ]]
     init_cond = [[[0, 0, 0], [0, 0, 0], 1, True],
-                 [[0, 0, 0], [0, 0, 0], 1, False]]
+                 [[1, 0, 0], [0, 0, 0], 1, False]]
 
 
     ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
+    ps.plot()
     pass

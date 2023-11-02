@@ -146,6 +146,10 @@ class SpringDamper(ImplicitForce):
 
         return jx, jv
     
+    def line_segment(self):
+        """Returns coordinate tuple of particles at either end of segment"""
+        return (self.p1.x, self.p2.x)
+    
     @property
     def l0(self):
         return self.__l0
