@@ -296,6 +296,10 @@ class ParticleSystem:
             
         lc = Line3DCollection(segments, colors = 'black', linewidths = 0.5)  
         ax.add_collection3d(lc)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        ax.set_aspect('equal')
         
         return ax
     
