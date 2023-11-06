@@ -247,6 +247,10 @@ class ParticleSystem:
     # def stiffness_m(self):
     #     self.__system_jacobians()
     #     return self.__jx
+    
+    @property
+    def kinetic_energy(self):
+        return self.__w_kin
 
     @property
     def f_int(self):
