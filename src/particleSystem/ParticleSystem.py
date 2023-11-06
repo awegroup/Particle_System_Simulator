@@ -7,6 +7,7 @@ import numpy.typing as npt
 from src.particleSystem.Particle import Particle
 from src.particleSystem.SpringDamper import SpringDamper 
 from scipy.sparse.linalg import bicgstab
+from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
@@ -293,11 +294,146 @@ class ParticleSystem:
         ax.add_collection3d(lc)
         
         return ax
+    
+    def __initialize_find_surface(self, projection_plane: str = 'z'):
+        """
+        performs triangulation and sets up conversion matrix for surface calc
+        
+        Projects the point cloud onto specified plane and performs 
+        triangulation. Then uses shape of current triangles to create a 
+        conversion matrix for assigning the areas of each triangle onto the 
+        nodes. 
+        
+        Parameters
+        ----------
+            projection_plane: normal direction of plane for the mesh to be 
+                projected on for triangulation. Default: z
+        
+        
+        Returns
+        -------
+            simplices: nested list of node indices that make up triangles
+            conversion_matrix: ndarray of shape n_nodes x n_triangles
+
+        """
+        # Gathering points of nodes
+        points = self.__pack_x_current()
+        points = points.reshape((int(len(points)/3),3))
+        
+        # Checking projection plane
+        if projection_plane == 'x':
+            projection_plane = 0
+        elif projection_plane == 'y':
+            projection_plane = 1
+        elif projection_plane == 'z':
+            projection_plane = 2
+        else:
+            raise AttributeError("projection_plane improperly defined; Must be x, y or z.")
+        
+        # Performing triangulation
+        points_projected = points[:,:projection_plane] # Projecting onto x-y plane
+        tri = Delaunay(points_projected)
+        
+        # Finding areas of each triangle
+        v1 = points[tri.simplices][:,0]-points[tri.simplices][:,1]
+        v2 = points[tri.simplices][:,0]-points[tri.simplices][:,2]     
+        
+        # Next we set up the matrix multiplication that will divide the areas 
+        # of the triangles over the actual nodes
+        conversion_matrix = np.zeros((self.__n*3,len(tri.simplices)*3))
+
+        v1_length = np.linalg.norm(v1, axis=1)
+        v2_length = np.linalg.norm(v2, axis=1)
+        v3_length = np.linalg.norm(v2-v1, axis=1)
+
+        angle_1 = np.arccos(np.sum(v1*v2, axis = 1)/(v1_length*v2_length))
+        angle_2 = np.arcsin(v2_length/v3_length * np.sin(angle_1))
+        angle_3 = np.pi - angle_1 - angle_2
+
+        angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten()/np.pi
+
+        for j, indices in enumerate(tri.simplices):
+            for k, i in enumerate(indices):
+                conversion_matrix[3*i,3*j]+= angle_iterator[3*j+k]
+                conversion_matrix[3*i+1,3*j+1]+= angle_iterator[3*j+k]
+                conversion_matrix[3*i+2,3*j+2]+= angle_iterator[3*j+k]
+        
+        return tri.simplices, conversion_matrix
+    
+    def find_surface(self, projection_plane: str = 'z') -> np.ndarray:
+        """
+        finds the surface area vector for each node in the mesh
+        
+        Parameters
+        ----------
+            projection_plane: passed to self.__initialize_find_surface().
+            
+        
+        Returns
+        -------
+            areas: ndaarray, 3D area vectors for each node
+        
+        """
+        
+        if not hasattr(self, '__surface_conversion_matrix'):
+            simplices, conversion_matrix = self.__initialize_find_surface()
+            self.__simplices = simplices 
+            self.__surface_conversion_matrix = conversion_matrix
+        else: 
+            conversion_matrix = self.__surface_conversion_matrix
+            simplices = self.__simplices
+        
+        # Gathering points of nodes
+        points = self.__pack_x_current()
+        points = points.reshape((int(len(points)/3),3))
+        
+        # Finding areas of each triangle
+        v1 = points[simplices][:,0]-points[simplices][:,1]
+        v2 = points[simplices][:,0]-points[simplices][:,2]
+
+        area_vectors = np.cross(v1,v2)/2
+        
+        # Now we transorm the simplice areas into nodal areas
+        input_vector = area_vectors.flatten()
+        area_vectors_1d = np.matmul(conversion_matrix,input_vector)
+        area_vectors_redistributed = area_vectors_1d.reshape((self.__n,3))
+        
+        return area_vectors_redistributed
+    
+    def plot_triangulated_surface(self):
+        """
+        plots triangulated surface for user inspection
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # Gathering points of nodes
+        points = self.__pack_x_current()
+        points = points.reshape((int(len(points)/3),3))
+        x,y,z = points[:,0], points[:,1], points[:,2]
+
+        
+        area_vectors = self.find_surface()
+        a_u = area_vectors[:,0]
+        a_v = area_vectors[:,1]
+        a_w = area_vectors[:,2]
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        ax.plot_trisurf(x, y, z, triangles=self.__simplices, cmap=plt.cm.Spectral)
+        ax.scatter(x,y,z)
+        ax.quiver(x,y,z,a_u,a_v,a_w, length = 1)
+
+        
+
 
 if __name__ == "__main__":
     params = {
         # model parameters
-        "n": 2,  # [-] number of particles
+        "n": 3,  # [-] number of particles
         "k": 2e4,  # [N/m] spring stiffness
         "c": 0,  # [N s/m] damping coefficient
         "l0": 0,  # [m] rest length
@@ -312,9 +448,13 @@ if __name__ == "__main__":
         # physical parameters
         "g": 9.81           # [m/s^2] gravitational acceleration
     }
-    c_matrix = [[0, 1, params['k'], params['c'] ]]
+    c_matrix = [[0, 1, params['k'], params['c']],
+                [1, 2, params['k'], params['c']]
+                ]
     init_cond = [[[0, 0, 0], [0, 0, 0], 1, True],
-                 [[1, 0, 0], [0, 0, 0], 1, False]]
+                 [[1, 0, 0], [0, 0, 0], 1, False],
+                 [[1, 1, 0], [0, 0, 0], 1, False]
+                 ]
 
 
     ps = ParticleSystem(c_matrix, init_cond, params)
