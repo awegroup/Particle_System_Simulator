@@ -14,7 +14,7 @@ from Msc_Alexander_Batchelor.src.AnalysisModules.SystemEnergy import system_ener
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_param, input.params)
 
 
 def exact_solution(t_vector: npt.ArrayLike):
@@ -34,7 +34,7 @@ def exact_solution(t_vector: npt.ArrayLike):
         print("system is overdamped")
 
     # solve as IVP
-    y0 = np.array([1, 0.5, 0.])
+    y0 = np.array([1, 0])
 
     def syst_of_diff_eq(t, y):
         A = np.array([[0, 1], [-omega**2, -gamma]])
@@ -42,6 +42,9 @@ def exact_solution(t_vector: npt.ArrayLike):
         return system
 
     t_int = [t_vector[0], t_vector[-1]]
+    # print(t_int)
+    # print(y0)
+    # print(t_vector)
     ivp_solution = solve_ivp(syst_of_diff_eq, t_int, y0=y0, t_eval=t_vector)
 
     # # exact solution

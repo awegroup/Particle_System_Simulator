@@ -35,7 +35,10 @@ def connectivity_matrix(grid_size: int):
 
     matrix[matrix > 1] = 1                      # remove double connections
 
-    return matrix, fixed_nodes
+    b = np.nonzero(np.triu(matrix))
+    b = np.column_stack((b[0], b[1]))
+
+    return b, fixed_nodes
 
 
 def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: float, g_l: float):
@@ -66,6 +69,17 @@ def initial_conditions(g_size: int, m_segment: float, fixed_nodes: list, g_h: fl
             conditions.append([list(x_y[i]) + [g_h/2], [0, 0, 0], m_segment, False])
 
     return conditions
+
+
+def element_parameters(k, c, c_m, i_c):
+    e_m = []
+
+    for indeces in c_m:
+        i0, i1 = indeces[0], indeces[1]
+        # l0 = np.linalg.norm(np.array(i_c[i0][0]) - np.array(i_c[i1][0]))
+        e_m.append([k, 0, c])
+
+    return e_m
 
 
 # dictionary of required parameters
@@ -103,6 +117,7 @@ params["n"] = grid_size ** 2 + (grid_size - 1) ** 2
 # instantiate connectivity matrix and initial conditions array
 c_matrix, f_nodes = connectivity_matrix(grid_size)
 init_cond = initial_conditions(grid_size, params["m_segment"], f_nodes, grid_height, grid_length)
+elem_params = element_parameters(params["k"], params["c"], c_matrix, init_cond)
 
 # print(init_cond)
 
@@ -118,14 +133,14 @@ if __name__ == "__main__":
         y.append(init_cond[i][0][1])
         z.append(init_cond[i][0][2])
 
-    fig= plt.figure()
+    fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
 
-    b = np.nonzero(np.triu(c_matrix))
-    b = np.column_stack((b[0], b[1]))
+    # b = np.nonzero(np.triu(c_matrix))
+    # b = np.column_stack((b[0], b[1]))
 
     ax.scatter(x, y, z, c='red')
-    for indices in b:
+    for indices in c_matrix:
         ax.plot([x[indices[0]], x[indices[1]]], [y[indices[0]], y[indices[1]]], [z[indices[0]], z[indices[1]]],
                 color='black')
 

@@ -11,11 +11,7 @@ from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSy
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
-
-
-def external_forces(n: int, g: float):
-    return
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
 
 def exact_solution(t_vector: npt.ArrayLike):
@@ -119,17 +115,17 @@ def plot(psystem: ParticleSystem, ps2: ParticleSystem, ps3: ParticleSystem):
 
 
 if __name__ == "__main__":
-    ps = ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    ps = ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
     params = input.params.copy()
     params2 = input.params.copy()
 
     params["dt"] = 0.1
     params["t_steps"] = 100
-    ps2 = ParticleSystem(input.c_matrix, input.init_cond, params)
+    ps2 = ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, params)
 
     params2["dt"] = 1
     params2["t_steps"] = 10
-    ps3 = ParticleSystem(input.c_matrix, input.init_cond, params2)
+    ps3 = ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, params2)
 
     plot(ps, ps2, ps3)

@@ -12,7 +12,7 @@ np.seterr(all='raise')
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, p)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, p)
 
 
 def calculate_f_a(ps: ParticleSystem):
@@ -114,8 +114,9 @@ if __name__ == "__main__":
                     # ic = input.initial_conditions(p['l0'], amount, p['m_segment'])
                     ic = input.initial_conditions(p['l0'], amount, p['m'])
 
+                    e_m = input.element_parameters(p["k"], p["l0"], p["c"], p["n"])
                     # instantiate PS with settings
-                    ps = ParticleSystem(c_m, ic, p)
+                    ps = ParticleSystem(c_m, ic, e_m, p)
                     # print(p)
                     # measure convergence time
                     times[i-1] += timeit.repeat(lambda: converge(ps, i), repeat=1, number=1)

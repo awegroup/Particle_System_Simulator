@@ -13,7 +13,7 @@ from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSy
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, p)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, p)
 
 
 def converge(psystem: ParticleSystem, c: int, f_ext: npt.ArrayLike):
@@ -81,9 +81,10 @@ if __name__ == "__main__":
                     c_m = input.connectivity_matrix(amount)
                     # ic = input.initial_conditions(p['l0'], amount, p['m_segment'])
                     ic = input.initial_conditions(p['l0'], amount, p['m'])
+                    e_m = input.element_parameters(p["k"], p["l0"], p["c"], p["n"])
 
                     # instantiate PS with settings
-                    ps = ParticleSystem(c_m, ic, p)
+                    ps = ParticleSystem(c_m, ic, e_m, p)
 
                     particles = ps.particles
                     f_ext = np.array([[0, 0, -p['g'] * particle.m] for particle in particles]).flatten()

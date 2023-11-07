@@ -4,14 +4,13 @@ Script for PS framework validation, benchmark case where saddle form of self str
 import numpy as np
 import saddle_form_input as input
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
 import pandas as pd
 import time
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
 
 def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
@@ -64,12 +63,12 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
         Y.append(position[f"y{i + 1}"].iloc[0])
         Z.append(position[f"z{i + 1}"].iloc[0])
 
-    fig= plt.figure(figsize=plt.figaspect(0.5))
+    fig = plt.figure(figsize=plt.figaspect(0.5))
     ax = fig.add_subplot(1, 2, 1, projection="3d")
     ax2 = fig.add_subplot(1, 2, 2, projection="3d")
 
-    b = np.nonzero(np.triu(input.c_matrix))
-    b = np.column_stack((b[0], b[1]))
+    # b = np.nonzero(np.triu(input.c_matrix))
+    # b = np.column_stack((b[0], b[1]))
 
     # data from final timestep
     X_f = []
@@ -82,15 +81,15 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
 
     # plot inital layout
     ax.scatter(X, Y, Z, c='red')
-    for indices in b:
+    for indices in input.c_matrix:
         ax.plot([X[indices[0]], X[indices[1]]], [Y[indices[0]], Y[indices[1]]], [Z[indices[0]], Z[indices[1]]],
                 color='black')
 
     # plot final found shape
     ax2.scatter(X_f, Y_f, Z_f, c='red')
-    for indices in b:
+    for indices in input.c_matrix:
         ax2.plot([X_f[indices[0]], X_f[indices[1]]], [Y_f[indices[0]], Y_f[indices[1]]], [Z_f[indices[0]],
-                Z_f[indices[1]]], color='black')
+                 Z_f[indices[1]]], color='black')
 
     # surf = ax.plot_surface(X, Y, Z)#, rstride=1, cstride=1, cmap=cm.coolwarm,linewidth=0, antialiased=False)
 

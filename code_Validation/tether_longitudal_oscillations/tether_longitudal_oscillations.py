@@ -14,7 +14,7 @@ from Msc_Alexander_Batchelor.src.AnalysisModules.SystemEnergy import system_ener
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
 
 def exact_solution(t_vector: npt.ArrayLike):
@@ -97,9 +97,9 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
         # sys_energy.loc[step] = system_energy(psystem, input.params, v_prev)
         sys_energy.loc[step] = np.matmul(np.matmul(v_prev, m), v_prev)
 
-        # x_next, v_next = psystem.simulate(f_ext)
+        x_next, v_next = psystem.simulate(f_ext)
         # x_next, v_next = psystem.kin_damp_sim(f_ext)
-        x_next, v_next = psystem.kin_damp_sim(f_ext, q_correction=True)
+        # x_next, v_next = psystem.kin_damp_sim(f_ext, q_correction=True)
 
         position.loc[step], velocity.loc[step] = x_next, v_next
         v_prev = v_next

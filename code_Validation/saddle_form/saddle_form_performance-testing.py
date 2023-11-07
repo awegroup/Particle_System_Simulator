@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 # import saddle_form_input as input
 from saddle_form_input import params as p
-from saddle_form_input import connectivity_matrix, initial_conditions
+from saddle_form_input import connectivity_matrix, initial_conditions, element_parameters
 import timeit
 import time
 from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
@@ -75,9 +75,10 @@ if __name__ == "__main__":
                     c_m, f_nodes = connectivity_matrix(grid_size)
                     # print(grid_size, p["m"], f_nodes, input.grid_height, input.grid_length)
                     ic = initial_conditions(grid_size, p["m"], f_nodes, grid_height, grid_length)
+                    e_m = element_parameters(p["k"], p["c"], c_m, ic)
 
                     # instantiate PS with correct settings
-                    ps = ParticleSystem(c_m, ic, p)
+                    ps = ParticleSystem(c_m, ic, e_m, p)
 
                     # measure convergence time
                     times[i-1] += timeit.repeat(lambda: converge(ps, i), repeat=1, number=1)

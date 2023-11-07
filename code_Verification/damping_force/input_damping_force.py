@@ -5,13 +5,18 @@ import numpy as np
 
 
 def connectivity_matrix():
-    matrix = np.array([[0, 1], [1, 0]])
+    matrix = [[0, 1]]
     return matrix
 
 
 def initial_conditions():
     conditions = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 1], [0, 0, 0], 1, False]]
     return conditions
+
+
+def element_parameters(k, l0, c):
+    e_p = [[k, l0, c]]
+    return e_p
 
 
 # dictionary of required parameters
@@ -39,4 +44,4 @@ params["l0"] = params["L"]/(params["n"]-1)
 # instantiate connectivity matrix and initial conditions array
 c_matrix = connectivity_matrix()
 init_cond = initial_conditions()
-
+elem_param = element_parameters(params["k"], params["l0"], params["c"])

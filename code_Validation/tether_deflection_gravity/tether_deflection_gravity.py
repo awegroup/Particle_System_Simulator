@@ -14,8 +14,9 @@ from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSy
 
 from sympy import *
 
+
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
 
 def generate_animation(pos, n: int, t: npt.ArrayLike):

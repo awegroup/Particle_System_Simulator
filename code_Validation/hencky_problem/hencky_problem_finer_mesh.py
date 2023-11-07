@@ -2,7 +2,7 @@
 Script for PS framework validation, benchmark case where saddle form of self stressed network is sought
 """
 import numpy as np
-import hencky_problem_input as input
+import hencky_problem_input_finer_mesh as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
@@ -72,7 +72,7 @@ def analytical_solution(a_n, radius, loading_param):
             series += a_n[i] * (1 - coordinate ** (2*i + 2))
         w.append(loading_param ** (1/3) * series)
     # print(np.around(w, 4))
-    w = np.array(w)*radius#*input.d
+    w = np.array(w)*radius*input.d
     # print(np.around(w, 5))
     # print(c)
     return w, c
@@ -184,6 +184,29 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem):
         ax2.plot([X_f[indices[0]], X_f[indices[1]]], [Y_f[indices[0]], Y_f[indices[1]]], [Z_f[indices[0]],
                 Z_f[indices[1]]], color='black', label=labels[1])
 
+    # Optional force vector plot
+    v = force(ps)
+    for vector in v:
+        x = vector[0]
+        y = vector[1]
+        z = vector[2]
+        sf = 0.03
+        x_u = vector[3][0] * sf
+        y_u = vector[3][1] * sf
+        z_u = vector[3][2] * sf
+        ax.quiver(x, y, z, x_u, y_u, z_u, color='r')
+
+    v2 = force(psystem2)
+    for vector in v2:
+        x = vector[0]
+        y = vector[1]
+        z = vector[2]
+        sf = 0.03
+        x_u = vector[3][0] * sf
+        y_u = vector[3][1] * sf
+        z_u = vector[3][2] * sf
+        ax2.quiver(x, y, z, x_u, y_u, z_u, color='r')
+
     ax.set_title("PS viscous damping")
     ax2.set_title("PS kinetic damping")
 
@@ -200,8 +223,8 @@ if __name__ == "__main__":
 
     plot(ps, ps2)
 
-    # test to check if normal vectors for force calculation are pointed in right direction
-    # for i in range(10):
+    # # test to check if normal vectors for force calculation are pointed in right direction
+    # for i in range(input.params['t_steps']):
     #     f_ext = calc_f(ps)
     #     ps.simulate(f_ext)
     #     v = force(ps)

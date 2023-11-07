@@ -11,7 +11,7 @@ from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSy
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.params)
+    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_params, input.params)
 
 
 def exact_solution(t_vector: npt.ArrayLike):                       # analytical solution for this test case

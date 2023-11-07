@@ -5,7 +5,10 @@ import numpy as np
 
 
 def connectivity_matrix(n: int):
-    matrix = np.eye(n, k=1) + np.eye(n, k=-1)
+    # matrix = np.eye(n, k=1) + np.eye(n, k=-1)
+    matrix = []
+    for i in range(n-1):
+        matrix.append([i, i+1])
     return matrix
 
 
@@ -13,6 +16,13 @@ def initial_conditions(l0: float, n: int, m_segment: float):
     conditions = [[[l0*i, 0, 0], [0, 0, 0], m_segment, False] for i in range(n)]
     conditions[0][-1] = conditions[-1][-1] = True       # Set ends of tether to fixed
     return conditions
+
+
+def element_parameters(k, l0, c, n):
+    e_m = []
+    for i in range(n-1):
+        e_m.append([k, l0, c])
+    return e_m
 
 
 # dictionary of required parameters
@@ -43,3 +53,4 @@ params["k"] = params["k"] * (params["n"] - 1)           # segment stiffness
 # instantiate connectivity matrix and initial conditions array
 c_matrix = connectivity_matrix(params['n'])
 init_cond = initial_conditions(params["l0"], params["n"], 1)#params["m_segment"])
+elem_params = element_parameters(params["k"], params["l0"], params["c"], params["n"])
