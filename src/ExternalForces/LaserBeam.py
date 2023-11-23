@@ -5,7 +5,9 @@ Child Class 'LaserBeam', for holding laser atributes
 from typing import Callable
 
 import numpy as np
+import matplotlib.pyplot as plt
 from src.particleSystem.SystemObject import SystemObject
+
 
 class LaserBeam(SystemObject):
     """
@@ -34,9 +36,9 @@ class LaserBeam(SystemObject):
         Parameters
         ----------
         intensity_profile : Callable[[float, float], float]
-            A numpy compatible function that maps x, y to the scalar intensity profile of the beam.
+            A numpy compatible function that maps x, y to the scalar intensity profile of the beam. [W/m^2]
         polarization_map : Callable[[float, float], np.ndarray]
-            A numpy compatible function that maps x, y to the polarization profile of the beam.
+            A numpy compatible function that maps x, y to the polarization profile of the beam. [-]
         Returns
         -------
         None.
@@ -45,28 +47,39 @@ class LaserBeam(SystemObject):
         self.intensity_profile = intensity_profile
         self.polarization_map = polarization_map
     
+    def __str__(self):
+        print("LaserBeam instantiated with attributes:")
+        print(f"polarisation_map: {self.polarization_map}")
+        print(f"intensity_profile: {self.intensity_profile}")
+        return ""
     
-    
+    def plot(self, ax = None, x_range = [-1,1], y_range = [-1,1], n = 100):
+        
+        n_sqrt = int(np.sqrt(n))
+        x = np.linspace(x_range[0],x_range[1],n_sqrt)
+        y = np.linspace(y_range[0],y_range[1],n_sqrt)
+        x, y = np.meshgrid(x,y)
+        
+        ip = self.intensity_profile(x,y)
+        pol = self.polarization_map(x,y)
+        
+        if ax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection = '3d')
+        ax.plot_surface(x,y,ip, label = "Intensity")
+        ax.quiver(x,y,ip, pol[0],pol[1],0, length = 0.1, color='r', label = "Polarization")
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        plt.legend()
+        
+        return ax
+
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
     mu = 0
     sigma = 0.5
     LB = LaserBeam(lambda x, y: np.exp(-1/2 *((x-mu)/sigma)**2
                                        -1/2 *((y-mu)/sigma)**2),
                    lambda x, y: np.array([1+0j, 0+0j])
                    )
-    x = np.linspace(-1,1,10)
-    y = np.linspace(-1,1,10)
-    x, y = np.meshgrid(x,y)
-    
-    ip = LB.intensity_profile(x,y)
-    pol = LB.polarization_map(x,y)
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(projection = '3d')
-    ax.plot_surface(x,y,ip, label = "Intensity")
-    ax.quiver(x,y,ip, pol[0],pol[1],0, length = 0.1, color='r', label = "Polarization")
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    plt.legend()
+    LB.plot()
     

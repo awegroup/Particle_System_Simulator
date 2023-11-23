@@ -435,7 +435,7 @@ class ParticleSystem:
         ax.scatter(x,y,z)
         ax.quiver(x,y,z,a_u,a_v,a_w, length = 1)
 
-        
+        return ax
 
 
 if __name__ == "__main__":
