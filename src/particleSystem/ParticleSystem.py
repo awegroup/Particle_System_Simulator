@@ -2,14 +2,16 @@
 ParticleSystem framework
 ...
 """
+import logging 
+
 import numpy as np
 import numpy.typing as npt
-from src.particleSystem.Particle import Particle
-from src.particleSystem.SpringDamper import SpringDamper 
 from scipy.sparse.linalg import bicgstab
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
+from src.particleSystem.Particle import Particle
+from src.particleSystem.SpringDamper import SpringDamper 
 
 
 class ParticleSystem:
@@ -264,7 +266,14 @@ class ParticleSystem:
     @property
     def x_v_current(self):
         return self.__pack_x_current(), self.__pack_v_current()
-
+    
+    @property
+    def x_v_current_3D(self):
+        x = self.__pack_x_current()
+        v = self.__pack_v_current()
+        x = np.reshape(x, (int(len(x)/3),3))
+        v = np.reshape(v, (int(len(v)/3),3))
+        return x, v
 
     def plot(self):
         """"Plots current system configuration
@@ -383,7 +392,8 @@ class ParticleSystem:
         
         """
         
-        if not hasattr(self, '__surface_conversion_matrix'):
+        if not hasattr(self, '_ParticleSystem__surface_conversion_matrix'):
+            logging.warning('find_surface called without prior initialization.')
             simplices, conversion_matrix = self.__initialize_find_surface()
             self.__simplices = simplices 
             self.__surface_conversion_matrix = conversion_matrix

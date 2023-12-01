@@ -25,6 +25,10 @@ class Particle(SystemObject):
         if not self.__fixed:
             self.__x = np.array(new_pos)
         return
+    
+    def update_pos_unsafe(self, new_pos : npt.ArrayLike):
+        """position update method that will override locations of fixed nodes"""
+        self.__x = np.array(new_pos)
 
     def update_vel(self, new_vel: npt.ArrayLike):
         if not self.__fixed:
