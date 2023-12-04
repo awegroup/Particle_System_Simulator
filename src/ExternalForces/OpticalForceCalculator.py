@@ -39,7 +39,7 @@ class OpticalForceCalculator(Force):
         print(f"LaserBeam: \n {self.LaserBeam}")
         return ""
     
-    def force_values(self):
+    def force_value(self):
         PS = self.ParticleSystem
         LB = self.LaserBeam
         area_vectors = PS.find_surface()
