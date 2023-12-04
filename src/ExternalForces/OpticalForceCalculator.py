@@ -29,6 +29,8 @@ class OpticalForceCalculator(Force):
         if not hasattr(self.ParticleSystem.particles[0],'optical_type'):
             raise AttributeError("ParticleSystem does not have any optical properties set!")
         
+        super().__init__()
+        return 
         
         
     def __str__(self):
@@ -37,7 +39,7 @@ class OpticalForceCalculator(Force):
         print(f"LaserBeam: \n {self.LaserBeam}")
         return ""
     
-    def force_value(self):
+    def force_values(self):
         PS = self.ParticleSystem
         LB = self.LaserBeam
         area_vectors = PS.find_surface()
