@@ -24,7 +24,7 @@ class ParticleSystem:
         :param connectivity_matrix: 2-by-m matrix, where each column contains a nodal index pair that is connected
                                     by a spring element.
         :param initial_conditions:  Array of n arrays to instantiate particles. Each subarray must contain the params
-                                    required for the particle constructor: [initial_pos, initial_vel, mass, fixed: bool]
+                                    required for the particle constructor: [initial_pos, initial_vel, mass, fixed: bool, constraint]
         :param element_params:      Array of m arrays to instantiate elements. Each subarray must contain the remaining
                                     params required for the element constructor: [k, l0, c, compressive_resistant, ...]
                                     # note: could change depending on what element types are added in the future.
@@ -73,7 +73,12 @@ class ParticleSystem:
             v = set_of_initial_cond[1]
             m = set_of_initial_cond[2]
             f = set_of_initial_cond[3]
-            self.__particles.append(Particle(x, v, m, f))
+            if f and len(set_of_initial_cond)>=5:
+                con = set_of_initial_cond[4]
+                con_t = set_of_initial_cond[5]
+                self.__particles.append(Particle(x, v, m, f, con, con_t))
+            else:
+                self.__particles.append(Particle(x, v, m, f))
         return
 
     def __instantiate_springdampers(self):
@@ -236,6 +241,15 @@ class ParticleSystem:
         self.__x_min2 = self.__x_min1
         self.__x_min1 = self.__pack_x_current()
         return
+    
+    def find_reaction_forces(self):
+        fixlist = [p.fixed for p in self.particles]
+        projections = [p.constraint_projection_matrix for p in np.array(self.particles)[fixlist]]
+        forces = self.__f.reshape((self.__n,3))
+        forces = -forces[fixlist]
+        for i, projection in enumerate(projections):
+            forces[i] -= projection.dot(forces[i].T).T
+        return forces
 
     @property
     def particles(self):            # @property decorators required, as PS info might be required for external calcs

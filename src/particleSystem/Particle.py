@@ -31,7 +31,7 @@ class Particle(SystemObject):
             Desrcribes specific constraint if particle is fixed. The default is 
             None. This indicates that it's fixed in all three dimentions.
         constraint_type : str, optional
-            Describes constraint type. Can be free, line, plane or fixed
+            Describes constraint type. Can be free, point, line or plane
             Can be left default for fixed points, as they're indicated by
             passing constraint = [0,0,0]
             
@@ -69,6 +69,11 @@ class Particle(SystemObject):
         if self.__fixed:
             if constraint == None:
                 constraint = [0,0,0]
+                self.__constraint_type = 'point'
+            if self.__constraint_type not in ['point', 'line', 'plane']:
+                raise AttributeError(f"Incorrect constraint type set, expected"
+                                     f" line or plane, got "
+                                     f"{self.__constraint_type}")
             try: 
                 self.__constraint = np.array(constraint, dtype=float).reshape(1, 3)
             except (ValueError, TypeError) as e:
