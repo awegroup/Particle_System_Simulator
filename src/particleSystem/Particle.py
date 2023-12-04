@@ -7,7 +7,13 @@ import numpy.typing as npt
 
 
 class Particle(SystemObject):
-    def __init__(self, x: npt.ArrayLike, v: npt.ArrayLike, m: float, fixed: bool, constraint: npt.NDArray = None):
+    def __init__(self, 
+                 x: npt.ArrayLike, 
+                 v: npt.ArrayLike, 
+                 m: float, 
+                 fixed: bool, 
+                 constraint: npt.NDArray = None,
+                 constraint_type: str = 'free'):
         """
         Object that holds particle data
 
@@ -24,7 +30,11 @@ class Particle(SystemObject):
         constraint : npt.NDArray, optional
             Desrcribes specific constraint if particle is fixed. The default is 
             None. This indicates that it's fixed in all three dimentions.
-
+        constraint_type : str, optional
+            Describes constraint type. Can be free, line, plane or fixed
+            Can be left default for fixed points, as they're indicated by
+            passing constraint = [0,0,0]
+            
         Raises
         ------
         AttributeError
@@ -40,9 +50,22 @@ class Particle(SystemObject):
         self.__m = m
         self.__fixed = fixed
         self.__constraint = None
+        self.__constraint_type = constraint_type.lower()
         
-        # Implementing some checks to prevent confusion later. If this class 
-        # grows any further split into seperate setter and validator methods
+
+        if self.__fixed:
+            self.validate_constraint(constraint)
+            self.constraint_projection()
+        super().__init__()
+
+
+    def __str__(self):
+        return (f"Particle Object, position [m]: [{self.__x[0]}, {self.__x[1]}, {self.__x[2]}], " 
+               f"velocity [m/s]: [{self.__v[0]}, {self.__v[1]}, {self.__v[2]}], mass [kg]: {self.__m}" 
+               f", fixed: {self.__fixed}, {self.__constraint=}, {self.__constraint_type=}")
+
+    def validate_constraint(self, constraint):
+        "Checks if constraint is entered correctly, raises exception if otherwise"
         if self.__fixed:
             if constraint == None:
                 constraint = [0,0,0]
@@ -53,24 +76,23 @@ class Particle(SystemObject):
                                      f"not set correctly. Expecting (1,3) "
                                      f"npt.Arraylike, instead got "
                                      f"{constraint=}. Error: {e}")
-            self.constraint_projection()
-        super().__init__()
-
-
-    def __str__(self):
-        return (f"Particle Object, position [m]: [{self.__x[0]}, {self.__x[1]}, {self.__x[2]}], " 
-               f"velocity [m/s]: [{self.__v[0]}, {self.__v[1]}, {self.__v[2]}], mass [kg]: {self.__m}" 
-               f", fixed: {self.__fixed}, {self.__constraint=}")
+        else:
+            self.__constraint = None
 
     def constraint_projection(self):
         if np.sum(self.__constraint == 0) == 3:
             self.constraint_projection_matrix = np.zeros((3,3))
         else:
             normalised_constraint = self.__constraint / np.linalg.norm(self.__constraint)
-            projection_matrix = np.eye(3) - np.outer(normalised_constraint, 
-                                                     normalised_constraint)
-            self.constraint_projection_matrix = projection_matrix
-
+            if self.__constraint_type == 'plane':
+                projection_matrix = np.eye(3) - np.outer(normalised_constraint, 
+                                                         normalised_constraint)
+                self.constraint_projection_matrix = projection_matrix
+            elif self.__constraint_type == 'line':
+                projection_matrix = np.outer(normalised_constraint, 
+                                             normalised_constraint)
+                self.constraint_projection_matrix = projection_matrix
+                
     def update_pos(self, new_pos: npt.ArrayLike):
         if not self.__fixed:
             self.__x = np.array(new_pos)
@@ -104,6 +126,14 @@ class Particle(SystemObject):
     @property
     def fixed(self):
         return self.__fixed
+    
+    def set_fixed(self, fixed, constraint = None, constraint_type = 'free'):
+        self.__fixed = fixed
+        self.validate_constraint(constraint)
+        self.__constraint_type = constraint_type
+        if self.__fixed:
+            self.constraint_projection()
+        
 
 
 if __name__ == "__main__":
@@ -113,12 +143,13 @@ if __name__ == "__main__":
     fixed1 = False
     fixed2 = True
     constraint2 = [-1,0,1]
+    constraint_type2 = 'line'
     p1 = Particle(position, velocity, mass, fixed1)
-    p2 = Particle(position, velocity, mass, fixed2, constraint2)
+    p2 = Particle(position, velocity, mass, fixed2, constraint2, constraint_type2)
     print('Starting positions')
     print(p1)
     print(p2, '\n')
-    updated_pos = [0, 0, 1]
+    updated_pos = [0, 1, 1]
     updated_vel = [0, 0, 1]
     p1.update_pos(updated_pos)
     p1.update_vel(updated_vel)
