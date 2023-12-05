@@ -139,7 +139,9 @@ class Particle(SystemObject):
         if self.__fixed:
             self.constraint_projection()
         
-
+    @property
+    def constraint_type(self):
+        return self.__constraint_type
 
 if __name__ == "__main__":
     position = [0, 0, 0]

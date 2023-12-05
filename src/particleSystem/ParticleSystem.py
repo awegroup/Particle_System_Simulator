@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
+import scipy.sparse 
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -44,6 +45,7 @@ class ParticleSystem:
         self.__f = np.zeros((self.__n * 3, ))
         self.__jx = np.zeros((self.__n * 3, self.__n * 3))
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
+
 
         self.__instantiate_particles(initial_conditions)
         self.__m_matrix = self.__construct_m_matrix()
@@ -123,10 +125,13 @@ class ParticleSystem:
         x_current = self.__pack_x_current()
 
         jx, jv = self.__system_jacobians()
-
+        
+        #jx = scipy.sparse.csc_array(jx)
+        #jv = scipy.sparse.csc_array(jv)
+        
         # constructing A matrix and b vector for solver
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
-        b = self.__dt * f + self.__dt ** 2 * np.matmul(jx, v_current)
+        b = self.__dt * f + self.__dt ** 2 * jx.dot(v_current)
 
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
@@ -208,18 +213,26 @@ class ParticleSystem:
             jx, jv = self.__springdampers[n].calculate_jacobian()
             i, j, *_ = self.__connectivity_matrix[n]
             if self.__particles[i].fixed:
-                jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
-                jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
+                if self.__particles[i].constraint_type == 'point': 
+                    jxplus = np.zeros([3,3])
+                    jvplus = jxplus
+                else:
+                    jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
+                    jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
             else: 
                 jxplus = jx
                 jvplus = jv
             
             if self.__particles[j].fixed:
-                jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
-                jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
+                if self.__particles[j].constraint_type == 'point': 
+                    jxmin = np.zeros([3,3])
+                    jvmin = jxmin
+                else:
+                    jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
+                    jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
             else: 
                 jxmin = jx
-                jxmin = jv
+                jvmin = jv
             
             self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jxplus
             self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jxplus
