@@ -131,12 +131,6 @@ class ParticleSystem:
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
 
-        for i in range(self.__n):
-            if self.__particles[i].fixed:
-                A[i * 3: (i + 1) * 3] = 0        # zeroes out row i to i + 3
-                A[:, i * 3: (i + 1) * 3] = 0     # zeroes out column i to i + 3
-                b[i * 3: (i + 1) * 3] = 0        # zeroes out row i
-
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
 
@@ -213,16 +207,29 @@ class ParticleSystem:
         for n in range(len(self.__springdampers)):
             jx, jv = self.__springdampers[n].calculate_jacobian()
             i, j, *_ = self.__connectivity_matrix[n]
+            if self.__particles[i].fixed:
+                jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
+                jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
+            else: 
+                jxplus = jx
+                jvplus = jv
+            
+            if self.__particles[j].fixed:
+                jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
+                jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
+            else: 
+                jxmin = jx
+                jxmin = jv
+            
+            self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jxplus
+            self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jxplus
+            self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jxmin
+            self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jxmin
 
-            self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
-            self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
-            self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jx
-            self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jx
-
-            self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jv
-            self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jv
-            self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jv
-            self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
+            self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jvplus
+            self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jvplus
+            self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jvmin
+            self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jvmin
 
         return self.__jx, self.__jv
 
