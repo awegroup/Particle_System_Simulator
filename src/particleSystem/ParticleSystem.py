@@ -47,6 +47,7 @@ class ParticleSystem:
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
 
+
         self.__instantiate_particles(initial_conditions)
         self.__m_matrix = self.__construct_m_matrix()
         self.__instantiate_springdampers()
@@ -126,8 +127,8 @@ class ParticleSystem:
 
         jx, jv = self.__system_jacobians()
         
-        #jx = scipy.sparse.csc_array(jx)
-        #jv = scipy.sparse.csc_array(jv)
+        #jx = scipy.sparse.lil_array(jx)
+        #jv = scipy.sparse.lil_array(jv)
         
         # constructing A matrix and b vector for solver
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
@@ -135,7 +136,7 @@ class ParticleSystem:
 
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
-
+        #A = scipy.sparse.bsr_array(A)
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
 
