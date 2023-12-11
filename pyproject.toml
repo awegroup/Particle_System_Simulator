@@ -1,0 +1,9 @@
+[tool.portray]
+
+modules = [	'src.particleSystem.Particle',
+			'src.particleSystem.SpringDamper',
+			'src.particleSystem.ParticleSystem',
+			'src.ExternalForces.OpticalForceCalculator',
+			'src.ExternalForces.LaserBeam',
+			'src.Mesh.Mesher']
+

@@ -22,14 +22,18 @@ class ParticleSystem:
                  sim_param: dict):
         """
         Constructor for ParticleSystem object, model made up of n particles
-        :param connectivity_matrix: 2-by-m matrix, where each column contains a nodal index pair that is connected
-                                    by a spring element.
-        :param initial_conditions:  Array of n arrays to instantiate particles. Each subarray must contain the params
-                                    required for the particle constructor: [initial_pos, initial_vel, mass, fixed: bool, constraint]
-        :param element_params:      Array of m arrays to instantiate elements. Each subarray must contain the remaining
-                                    params required for the element constructor: [k, l0, c, compressive_resistant, ...]
-                                    # note: could change depending on what element types are added in the future.
-        :param sim_param:           Dictionary of other parameters required for simulation (dt, rtol, ...)
+        
+        Parameters
+        ---------
+        connectivity_matrix : list
+            2-by-m matrix, where each column contains a nodal index pair that 
+            is connectedby a spring element.
+        initial_conditions :  npt.ArrayLike
+            Array of n arrays to instantiate particles. Each subarray must 
+            contain the params required for the particle constructor: 
+                [initial_pos, initial_vel, mass, fixed: bool, constraint]
+        param sim_param : dict
+            Dictionary of other parameters required for simulation (dt, rtol, ...)
         """
         self.__connectivity_matrix = connectivity_matrix
 
@@ -347,7 +351,7 @@ class ParticleSystem:
         
         return ax
     
-    def __initialize_find_surface(self, projection_plane: str = 'z'):
+    def initialize_find_surface(self, projection_plane: str = 'z'):
         """
         performs triangulation and sets up conversion matrix for surface calc
         
@@ -358,14 +362,17 @@ class ParticleSystem:
         
         Parameters
         ----------
-            projection_plane: normal direction of plane for the mesh to be 
-                projected on for triangulation. Default: z
+        projection_plane : str
+            normal direction of plane for the mesh to be projected on for 
+            triangulation. Default: z
         
         
         Returns
         -------
-            simplices: nested list of node indices that make up triangles
-            conversion_matrix: ndarray of shape n_nodes x n_triangles
+        simplices : list
+            nested list of node indices that make up triangles
+        conversion_matrix : npt.ArrayLike
+            ndarray of shape n_nodes x n_triangles
 
         """
         # Gathering points of nodes
@@ -418,18 +425,19 @@ class ParticleSystem:
         
         Parameters
         ----------
-            projection_plane: passed to self.__initialize_find_surface().
+            projection_plane: passed to self.initialize_find_surface().
             
         
         Returns
         -------
-            areas: ndaarray, 3D area vectors for each node
+        areas: npt.ArrayLike 
+            3D area vectors for each node
         
         """
         
         if not hasattr(self, '_ParticleSystem__surface_conversion_matrix'):
             logging.warning('find_surface called without prior initialization.')
-            simplices, conversion_matrix = self.__initialize_find_surface()
+            simplices, conversion_matrix = self.initialize_find_surface()
             self.__simplices = simplices 
             self.__surface_conversion_matrix = conversion_matrix
         else: 
@@ -456,10 +464,6 @@ class ParticleSystem:
     def plot_triangulated_surface(self):
         """
         plots triangulated surface for user inspection
-
-        Returns
-        -------
-        None.
 
         """
         

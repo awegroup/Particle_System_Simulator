@@ -6,7 +6,7 @@ This repository features a set of tools for analysing the deformation of membran
 
 Clone the repository:
 ```bash
-git clone https://github.com/username/LightSailSim.git
+git clone https://github.com/markk116/LightSailSim.git
 ```
 Navigate to the project directory:
 ```bash

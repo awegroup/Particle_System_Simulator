@@ -112,10 +112,6 @@ class OpticalForceCalculator(Force):
         AttributeError
             Raises error when particles have no optical type set.
 
-        Returns
-        -------
-        None.
-
         """
         optical_type_list = []
         error_index_list = []
@@ -194,18 +190,13 @@ class OpticalForceCalculator(Force):
         displaces the associated particle system with the prescribed amount 
         around the center of mass. 
 
-        Parameters
+        Arguments
         ----------
         displacement_range : list
             list of length 6 representing the displacement magnitudes to 
             perform the stability test. First three values represent lateral 
             displacement in meters. Next three values represent
             tilt angle around the centre of mass in degrees.
-
-        Returns
-        -------
-        None.
-
         """
         
         if len(displacement) != 6: 
@@ -233,10 +224,6 @@ class OpticalForceCalculator(Force):
     def un_displace_particle_system(self):
         """
         Reverses current mesh displacement of the associated particle system.
-
-        Returns
-        -------
-        None.
 
         """
         if not hasattr(self.ParticleSystem, 'current_displacement'):
@@ -288,7 +275,8 @@ class OpticalForceCalculator(Force):
 
         Returns
         -------
-        rotated_mesh
+        rotated_mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
 
         """
         gamma, beta, alpha = rotations
