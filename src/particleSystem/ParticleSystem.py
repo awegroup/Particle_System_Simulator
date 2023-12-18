@@ -314,14 +314,12 @@ class ParticleSystem:
         v = np.reshape(v, (int(len(v)/3),3))
         return x, v
 
-    def plot(self):
-        """"Plots current system configuration
+    def plot(self, ax=None):
+        """"Plots current system configuration"""
+        if ax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
         
-        # TODO matplotlib styleguide recommends that helper functions take ax as an argument
-        """
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
         
         fixlist = []
         freelist = []
@@ -334,7 +332,8 @@ class ParticleSystem:
         fixlist = np.array(fixlist)
         freelist = np.array(freelist)
         
-        ax.scatter(fixlist[:,0],fixlist[:,1],fixlist[:,2], color = 'red', marker = 'o')
+        if len(fixlist)>0:
+            ax.scatter(fixlist[:,0],fixlist[:,1],fixlist[:,2], color = 'red', marker = 'o')
         ax.scatter(freelist[:,0],freelist[:,1],freelist[:,2], color = 'blue', marker = 'o', s =5)
         
         segments = []
