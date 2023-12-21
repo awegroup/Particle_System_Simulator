@@ -19,7 +19,8 @@ class ParticleSystem:
     def __init__(self, 
                  connectivity_matrix: list, 
                  initial_conditions: npt.ArrayLike, 
-                 sim_param: dict):
+                 sim_param: dict,
+                 clean_particles: bool = True):
         """
         Constructor for ParticleSystem object, model made up of n particles
         
@@ -34,7 +35,12 @@ class ParticleSystem:
                 [initial_pos, initial_vel, mass, fixed: bool, constraint]
         param sim_param : dict
             Dictionary of other parameters required for simulation (dt, rtol, ...)
+        clean_particles : bool
+            Sets wether or not to delete particles without connections on init
         """
+        if clean_particles:
+            self.clean_up(connectivity_matrix, initial_conditions)
+        
         self.__connectivity_matrix = connectivity_matrix
 
         self.__n = len(initial_conditions)
@@ -49,8 +55,6 @@ class ParticleSystem:
         self.__f = np.zeros((self.__n * 3, ))
         self.__jx = np.zeros((self.__n * 3, self.__n * 3))
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
-
-
 
         self.__instantiate_particles(initial_conditions)
         self.__m_matrix = self.__construct_m_matrix()
@@ -93,8 +97,32 @@ class ParticleSystem:
             link = link.copy() #needed to not override the __connectivity_matrix
             link[0] = self.__particles[link[0]]
             link[1] = self.__particles[link[1]]
-            self.__springdampers.append(SpringDamper(*link))
+            SD = SpringDamper(*link)
+            self.__springdampers.append(SD)
+            link[0].connections.append(SD)
+            link[1].connections.append(SD)
         return
+    
+    def clean_up(self, connectivity_matrix, initial_conditions):
+        remove_list = set(range(len(initial_conditions)))
+        for link in connectivity_matrix:
+            try: 
+                remove_list.remove(link[0])
+            except:
+                pass
+            try: 
+                remove_list.remove(link[1])
+            except:
+                pass
+        remove_list = list(remove_list)
+        remove_list.sort()
+        for i in remove_list[::-1]:
+            del initial_conditions[i]
+            for link in connectivity_matrix:
+                if link[0]>i:
+                    link[0]-=1
+                if link[1]>i:
+                    link[1]-=1
     
     def stress_self(self, factor: float = 0):
         """Set all node lengths to zero to homogenously stress mesh"""

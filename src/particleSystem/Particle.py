@@ -51,6 +51,7 @@ class Particle(SystemObject):
         self.__fixed = fixed
         self.__constraint = None
         self.__constraint_type = constraint_type.lower()
+        self.connections = []
         
 
         if self.__fixed:

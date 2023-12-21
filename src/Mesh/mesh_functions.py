@@ -5,7 +5,8 @@ Created on Fri Dec  15 12:27:53 2023
 @author: Mark Kalsbeek
 """
 import numpy as np
-import scipy as sp
+from scipy.spatial.transform import Rotation as R
+
 
 
 params = {
@@ -16,11 +17,9 @@ params = {
     }
 
 
-def mesh_square(length, width, mesh_edge_length):
-    aspect_ratio = length/width
+def mesh_square(length, width, mesh_edge_length, params = params):
     n_wide = int(width/ mesh_edge_length + 1)
     n_long = int(length/ mesh_edge_length + 1)
-    n_points = n_wide*n_long
 
     mesh = np.meshgrid(np.linspace(0, length, n_long),
                        np.linspace(0, width, n_wide))
@@ -46,11 +45,9 @@ def mesh_square(length, width, mesh_edge_length):
     return initial_conditions, connections    
 
 
-def mesh_square_cross(length, width, mesh_edge_length):
-    aspect_ratio = length/width
+def mesh_square_cross(length, width, mesh_edge_length, params = params):
     n_wide = int(width/ mesh_edge_length + 1)
     n_long = int(length/ mesh_edge_length + 1)
-    n_points = n_wide*n_long
 
     mesh = np.meshgrid(np.linspace(0, length, n_long),
                        np.linspace(0, width, n_wide))
@@ -79,12 +76,11 @@ def mesh_square_cross(length, width, mesh_edge_length):
     return initial_conditions, connections    
 
 
-def mesh_square_concentric(length, width, mesh_edge_length, fix_outer = False):
-    n_wide = int(width/ mesh_edge_length + 1)
+def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer = False):
     n_long = int(length/ mesh_edge_length + 1)
     
     x_space = np.linspace(-length/2, length/2, n_long)
-    y_space = np.linspace(-width/2, width/2, n_wide)
+    y_space = x_space
     
     mesh = np.meshgrid(x_space,y_space)
     
@@ -93,7 +89,7 @@ def mesh_square_concentric(length, width, mesh_edge_length, fix_outer = False):
     xyz_coordinates = np.column_stack((xy_coordinates,np.zeros(len(xy_coordinates)).T))
     
     for xyz in xyz_coordinates:
-        if (abs(xyz[0]) == length/2 and abs(xyz[1]) == width/2) and fix_outer:
+        if (abs(xyz[0]) == length/2 and abs(xyz[1]) == length/2) and fix_outer:
             initial_conditions.append([xyz, np.zeros(3), params['m_segment'], True])
         else:    
             initial_conditions.append([xyz, np.zeros(3), params['m_segment'], False])
@@ -126,10 +122,9 @@ def mesh_square_concentric(length, width, mesh_edge_length, fix_outer = False):
     
     return initial_conditions, connections   
 
-def mesh_circle_square_cross(radius, mesh_edge_length, fix_outer = False, edge = 0):
+def mesh_circle_square_cross(radius, mesh_edge_length, params = params, fix_outer = False, edge = 0):
     n_wide = int(radius/ mesh_edge_length + 1)
     n_long = n_wide
-    n_points = n_wide*n_long
 
     mesh = np.meshgrid(np.linspace(-radius, radius, n_long),
                        np.linspace(-radius, radius, n_wide))
@@ -192,6 +187,127 @@ def mesh_circle_square_cross(radius, mesh_edge_length, fix_outer = False, edge =
     
     return initial_conditions, connections  
 
+def mesh_rotate_and_trim(initial_conditions, connections, angle):
+    """
+    NOTE: Input mesh is expected to be square!
+    """
+    center_of_mass = np.array([0,0,0],dtype ='float64')
+    for particle in initial_conditions:
+        center_of_mass+=particle[0]
+    center_of_mass = center_of_mass / len(initial_conditions)
+    
+    x_cleaned = np.array([i[0] for i in initial_conditions])
+    x_range, y_range, z_range = np.ptp(x_cleaned, axis = 0)
+    
+    # rotation shrinks size of inscribed rectangle
+    # Going for constant angle for consistent size
+    factor = np.cos(np.deg2rad(45))
+    x_range *= factor
+    y_range *= factor
+    
+    rotation_matrix = R.from_euler('z', angle, degrees = True).as_matrix()
+    
+    for particle in initial_conditions:
+        particle[0] -= center_of_mass
+        
+        particle[0] = rotation_matrix.dot(particle[0])
+        
+    dumplist = set()
+    for i, link in enumerate(connections):
+        xyz_0 = initial_conditions[link[0]][0]
+        xyz_1 = initial_conditions[link[1]][0]
+        if abs(xyz_0[0])> x_range/2:
+            dumplist.add(i)
+        elif abs(xyz_0[1])> y_range/2:
+            dumplist.add(i)
+        elif abs(xyz_1[0])> x_range/2:
+            dumplist.add(i)
+        elif abs(xyz_1[1])> y_range/2:
+            dumplist.add(i)
+    dumplist = list(dumplist)
+    dumplist.sort()
+    
+    for i in dumplist[::-1]:
+        del connections[i]
+    
+    return initial_conditions, connections
+    
+    
+def ps_fix_opposite_boundaries_x(ParticleSystem, margin = 0.075):
+    """
+    Fixes two boundaries in preparation for unidirectional pull test
+    
+    """
+    center_of_mass = np.array([0,0,0],dtype ='float64')
+    for particle in ParticleSystem.particles:
+        center_of_mass+=particle.x
+    center_of_mass = center_of_mass / len(ParticleSystem.particles)
+
+    x_cleaned = np.array([particle.x[0] for particle in ParticleSystem.particles])
+    x_range = np.ptp(x_cleaned, axis = 0)
+    
+    for particle in ParticleSystem.particles:
+        particle.update_pos_unsafe(particle.x-center_of_mass)
+
+    boundary_x_min = []
+    boundary_x_plus = []
+
+    for i, particle in enumerate(ParticleSystem.particles):
+        if abs(particle.x[0]) > ((x_range/2)*(1-margin)):
+            particle.set_fixed(True)
+            
+            if particle.x[0]>0:
+                boundary_x_plus.append(i)
+            else:
+                boundary_x_min.append(i)
+    boundaries = [boundary_x_min, boundary_x_plus]
+    
+    return ParticleSystem, boundaries
+
+def ps_stretch_in_x(ParticleSystem, boundary, displacement):
+    for indice in boundary:
+        particle = ParticleSystem.particles[indice]
+        new_pos = particle.x 
+        new_pos[0] += displacement
+        particle.update_pos(new_pos)
+
+def ps_find_reaction_of_boundary(ParticleSystem, boundary):
+    # !!! ATTENTION !!! DRAFT CODE! COMPLETLY UNTESTED!
+    internal_forces = ParticleSystem._ParticleSystem__one_d_force_vector()
+    reaction = np.array([0.0, 0.0, 0.0])
+    for indice in boundary:
+        reaction += internal_forces[indice*3: indice*3+3]
+    return reaction
+        
+def ps_find_mid_strip_y(ParticleSystem, width= 1):
+    center_of_mass = np.array([0,0,0],dtype ='float64')
+    for particle in ParticleSystem.particles:
+        center_of_mass+=particle.x
+    center_of_mass = center_of_mass / len(ParticleSystem.particles)
+
+    x_cleaned = np.array([particle.x[0] for particle in ParticleSystem.particles])
+    x_range = np.ptp(x_cleaned, axis = 0)
+    
+    for particle in ParticleSystem.particles:
+        particle.update_pos_unsafe(particle.x-center_of_mass)
+    
+    midstrip = []
+    for i, particle in enumerate(ParticleSystem.particles):
+        pos = particle.x
+        if abs(pos[0]) <= width/2: 
+            midstrip.append(i)
+    
+    return midstrip
+
+def ps_find_strip_dimentions(ParticleSystem, midstrip):
+    positions = []
+    for indice in midstrip:
+        particle = ParticleSystem.particles[indice]
+        positions.append(particle.x)
+    positions = np.array(positions)
+    point_to_point_range = np.ptp(positions, axis = 0)
+    return point_to_point_range
+    
 if __name__ == '__main__':
     from src.particleSystem.ParticleSystem import ParticleSystem
     import matplotlib.pyplot as plt
@@ -210,16 +326,43 @@ if __name__ == '__main__':
         }
     
     meshing_functions = [mesh_square, mesh_square_cross, mesh_square_concentric, mesh_circle_square_cross]
-    inputs = [16,16,1]
-    nplots = len(meshing_functions)
+    inputs = [16,8,1, params]
+    nplots = len(meshing_functions) + 1
+    
+    cols = int(np.sqrt(nplots)) +1
+    rows = nplots // cols
+    if nplots % cols !=0:
+        rows +=1
+    
     
     fig = plt.figure()
     pslist = []
     for i, function in enumerate(meshing_functions):
-        ax = fig.add_subplot(1, nplots,i+1,projection='3d')
-        if i ==3:
+        ax = fig.add_subplot(rows, cols,i+1,projection='3d')
+        if i ==2:
             inputs = inputs[1:]
         initial_conditions, connections = function(*inputs)
-        PS = ParticleSystem(connections, initial_conditions,params)
+        PS = ParticleSystem(connections, initial_conditions, params)
         pslist.append(PS)
+        
         PS.plot(ax)
+        ax.set_title(function.__name__)
+    
+    
+    initial_conditions, connections = mesh_square_cross(20,20,1,params)
+    initial_conditions, connections = mesh_rotate_and_trim(initial_conditions, 
+                                                           connections, 
+                                                           45/2)    
+    PS = ParticleSystem(connections, initial_conditions,params)
+    PS, boundaries = ps_fix_opposite_boundaries_x(PS, margin = 0.175)
+    
+    ps_stretch_in_x(PS, boundaries[1], 1)
+
+    pslist.append(PS)
+    
+    ax = fig.add_subplot(rows, cols, nplots, projection='3d')
+    PS.plot(ax)
+    ax.set_title((mesh_square_cross.__name__, mesh_rotate_and_trim.__name__, ps_fix_opposite_boundaries_x.__name__, ps_stretch_in_x.__name__))
+    
+    
+    
