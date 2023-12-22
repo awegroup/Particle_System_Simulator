@@ -124,13 +124,13 @@ class SpringDamper(ImplicitForce):
                 self.__linktype == SpringDamperType.NONCOMPRESSIVE and
                 norm_pos <= self.__l0
             ):
-            return np.zeros(3)
+            return np.zeros((3, 3)), np.zeros((3, 3))
         
         elif (
                 self.__linktype == SpringDamperType.NONTENSILE and
                 norm_pos >= self.__l0
             ):
-            return np.zeros(3)
+            return np.zeros(3), np.zeros(3)
 
         if norm_pos != 0:
             unit_vector = relative_pos / norm_pos

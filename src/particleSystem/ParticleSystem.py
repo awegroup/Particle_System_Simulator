@@ -52,7 +52,7 @@ class ParticleSystem:
         # allocate memory
         self.__particles = []
         self.__springdampers = []
-        self.__f = np.zeros((self.__n * 3, ))
+        self.__f = np.zeros((self.__n * 3, ),dtype='float64')
         self.__jx = np.zeros((self.__n * 3, self.__n * 3))
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
@@ -289,6 +289,10 @@ class ParticleSystem:
         self.__w_kin_min1 = self.__w_kin
         self.__w_kin = w_kin_new
         return
+    
+    def update_pos_unsafe(self, x_new: npt.ArrayLike):
+        for i, particle in enumerate(self.__particles):
+            particle.update_pos_unsafe(x_new[3*i: 3*i+3])
 
     def __save_state(self):
         self.__x_min2 = self.__x_min1
@@ -319,7 +323,7 @@ class ParticleSystem:
     
     @property
     def kinetic_energy(self):
-        return self.__w_kin
+        return self.__calc_kin_energy()
 
     @property
     def f_int(self):
@@ -433,16 +437,24 @@ class ParticleSystem:
         v3_length = np.linalg.norm(v2-v1, axis=1)
 
         angle_1 = np.arccos(np.sum(v1*v2, axis = 1)/(v1_length*v2_length))
-        angle_2 = np.arcsin(v2_length/v3_length * np.sin(angle_1))
+        
+        # Next bit is a fix for an error due ot limited numerical accuracy
+        inp = v2_length/v3_length * np.sin(angle_1)
+        inp[inp>1] = 1
+        angle_2 = np.arcsin(inp)
         angle_3 = np.pi - angle_1 - angle_2
 
         angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten()/np.pi
-
+        
         for j, indices in enumerate(tri.simplices):
             for k, i in enumerate(indices):
                 conversion_matrix[3*i,3*j]+= angle_iterator[3*j+k]
                 conversion_matrix[3*i+1,3*j+1]+= angle_iterator[3*j+k]
                 conversion_matrix[3*i+2,3*j+2]+= angle_iterator[3*j+k]
+        
+        
+        self.__simplices = tri.simplices 
+        self.__surface_conversion_matrix = conversion_matrix
         
         return tri.simplices, conversion_matrix
     
@@ -473,7 +485,8 @@ class ParticleSystem:
         
         # Gathering points of nodes
         points = self.__pack_x_current()
-        points = points.reshape((int(len(points)/3),3))
+        n = len(points)
+        points = points.reshape((int(n/3),3))
         
         # Finding areas of each triangle
         v1 = points[simplices][:,0]-points[simplices][:,1]
@@ -484,11 +497,11 @@ class ParticleSystem:
         # Now we transorm the simplice areas into nodal areas
         input_vector = area_vectors.flatten()
         area_vectors_1d = np.matmul(conversion_matrix,input_vector)
-        area_vectors_redistributed = area_vectors_1d.reshape((self.__n,3))
+        area_vectors_redistributed = area_vectors_1d.reshape((int(n/3),3))
         
         return area_vectors_redistributed
     
-    def plot_triangulated_surface(self):
+    def plot_triangulated_surface(self, ax = None):
         """
         plots triangulated surface for user inspection
 
@@ -505,8 +518,9 @@ class ParticleSystem:
         a_v = area_vectors[:,1]
         a_w = area_vectors[:,2]
         
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
+        if ax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
         ax.plot_trisurf(x, y, z, triangles=self.__simplices, cmap=plt.cm.Spectral)
         ax.scatter(x,y,z)
         ax.quiver(x,y,z,a_u,a_v,a_w, length = 1)

@@ -6,8 +6,9 @@ Created on Thu Dec 21 14:21:49 2023
 
 This module includes tools to aid in simulation, as well as some pre-baked simulation functions
 """
-import time
 
+import time
+import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -20,6 +21,8 @@ class Simulate:
     def __init__(self, ParticleSystem):
         self.PS = ParticleSystem
     
+    def run_simulation(self):
+        pass
     
 class Simulate_1d_Stretch(Simulate):
     def __init__(self, ParticleSystem, sim_params, save_plots = False):
@@ -98,8 +101,142 @@ class Simulate_1d_Stretch(Simulate):
         ax2.plot(self.steps, poissons_ratio)
         ax2.set_title("Poissons Ratio versus Strain")
                 
+
+
+class Simulate_airbag(Simulate):
+    def __init__(self, ParticleSystem, params):
+        self.PS = ParticleSystem
+        self.params = params
+        self.pressure = params['pressure']            # [Pa]
+
+        
+    def run_simulation(self, 
+                       plotframes: int = 0,
+                       plot_whole_bag: bool = False,
+                       printframes: int = 10,
+                       simulation_function: str = 'default'
+                       ):
+        """
+        
+
+        Parameters
+        ----------
+        plotframes : INT, optional
+            Save every nth frame. The default is 0, indicating saving zero frame.
+        plot_whole_bag : bool, optional
+            Wether or not to plot the whole bag. The default is False.
+        printframes : int, optional
+            Print a mesage every nth frame. The default is 10.
+        simulation_function : str, optional
+            Allows enabling kinetic damping by passing 'kinetic_damping'. The default is 'default'.
+
+        Returns
+        -------
+        None.
+
+        """
+        if simulation_function == 'kinetic_damping':
+            simulation_function = self.PS.kin_damp_sim
+        else:
+            simulation_function = self.PS.simulate
+        
+        
+        converged = False
+        convergence_history = []
+        dt = self.params['dt']
+        
+        if plotframes:
+            fig = plt.figure()
+        step = 0
+        start_time = time.time()
+        last_time = time.time()
+
+        while not converged:
+            step+= 1
+            if plotframes and step%plotframes==0:
+                ax = fig.add_subplot(projection='3d')
                 
+                if plot_whole_bag:
+                    self.plot_whole_airbag(ax)
+                else: 
+                    self.PS.plot(ax)
+                ax.set_title(f"Simulate_airbag, t = {step*dt:.3f}")
+                fig.tight_layout()
+                fig.savefig(f'temp\Airbag{step}.jpg', dpi = 200, format = 'jpg')
+                fig.clear()
+            
+            
+            areas = self.PS.find_surface()
+            areas = np.nan_to_num(areas)
+            f = np.hstack(areas) * self.pressure
+            
+            simulation_function(f)
+            
+            d_crit_d_step = 0
+            convergence_history.append(self.PS.kinetic_energy)
+            if  len(convergence_history)>self.params['min_iterations']:
+                d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
+                if d_crit_d_step<self.params['convergence_threshold']:
+                    converged = True
                 
+            current_time = time.time()
+            delta_time = current_time - last_time
+            last_time = current_time
+            
+            if printframes and step%printframes==0:
+                print(f'Just finished step {step}, it took {delta_time//60:.0f}m {delta_time%60:.2f}s, {d_crit_d_step=:.2g}')
+        delta_time = current_time - start_time
+        print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s')
+        
+        plt.plot(convergence_history)
+        print(convergence_history)
+        
+    def plot_whole_airbag(self, 
+                          ax = None,
+                          plotting_function = 'default'):
+        """
+        Plotting function that rotates and mirrors the simulated section 
+
+        Parameters
+        ----------
+        ax : matplotlib axis object
+            Checks for preexisting axis. If none is given, one is made
+        plotting_function : TYPE, optional
+            Allows for surface plot of the bag by passing 'surface'. The default is 'default'.
+
+        Returns
+        -------
+        ax : TYPE
+            DESCRIPTION.
+
+        """
+        plotfunct_dict = {'default': self.PS.plot,
+                          'surface': self.PS.plot_triangulated_surface}
+        
+        plotting_function = plotfunct_dict[plotting_function]
+        if ax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+            
+        PS = self.PS
+        
+        x, _ = PS.x_v_current
+
+        rotation_matrix = sp.spatial.transform.Rotation.from_euler('z', 90, degrees=True).as_matrix()
+        rotation_matrix = sp.linalg.block_diag(*[rotation_matrix for i in range(int(len(x)/3))])
+        
+        for i in range(4):
+            
+            x = rotation_matrix.dot(x)
+            PS.update_pos_unsafe(x)
+            plotting_function(ax)
+            x[2::3] *= -1
+            PS.update_pos_unsafe(x)
+            plotting_function(ax)
+        
+        return ax
+
+            
 if __name__ == '__main__':
     params = {
         # model parameters

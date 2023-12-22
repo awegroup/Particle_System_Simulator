@@ -7,6 +7,8 @@ Created on Fri Dec  15 12:27:53 2023
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+from src.particleSystem.SpringDamper import SpringDamperType
+
 
 
 params = {
@@ -121,6 +123,64 @@ def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer 
 
     
     return initial_conditions, connections   
+
+def mesh_airbag_square_cross(length, mesh_edge_length, params = params, noncompressive = False):
+    
+    initial_conditions, connections = mesh_square_cross(length, 
+                                                        length, 
+                                                        mesh_edge_length, 
+                                                        params)
+    
+    # We iterate over the particle and set specific constraint conditions
+    # to match the symmetry of the airbag being cut into 8 pieces
+    for particle in initial_conditions:
+        # sequence of if/elif statements matters becuase some of the used 
+        # critera can override others. 
+
+        
+        # Fixing s.t. center node only move in z axis
+        if (particle[0] == [0,0,0]).all():
+            particle[3] = True
+            particle.append([0,0,1])
+            particle.append('line')
+            
+        elif particle[0][0] == length and particle[0][1] == 0:
+            particle[3] = True
+            particle.append([1,0,0])
+            particle.append('line')
+            
+        elif particle[0][0] == 0 and particle[0][1] == length:
+            particle[3] = True
+            particle.append([0,1,0])
+            particle.append('line')
+            
+        elif    (
+                (particle[0][0] == length and particle[0][1]>0)
+                or 
+                (particle[0][1] == length and particle[0][0]>0)
+                ):
+            particle[3] = True
+            particle.append([0,0,1])
+            particle.append('plane')
+        
+        elif particle[0][0] == 0 and particle[0][1]>0 and particle[0][1]<length:
+            particle[3] = True
+            particle.append([1,0,0])
+            particle.append('plane')
+        
+        elif particle[0][1] == 0 and particle[0][0]>0 and particle[0][0]<length:
+            particle[3] = True
+            particle.append([0,1,0])
+            particle.append('plane')
+    
+    if noncompressive:
+        linktype = SpringDamperType.NONCOMPRESSIVE
+    
+        for link in connections:
+            link.append(linktype)
+    
+    return initial_conditions, connections   
+
 
 def mesh_circle_square_cross(radius, mesh_edge_length, params = params, fix_outer = False, edge = 0):
     n_wide = int(radius/ mesh_edge_length + 1)
@@ -325,7 +385,11 @@ if __name__ == '__main__':
         "max_iter": 1e5,  # [-]       maximum number of iterations]
         }
     
-    meshing_functions = [mesh_square, mesh_square_cross, mesh_square_concentric, mesh_circle_square_cross]
+    meshing_functions = [mesh_square, 
+                         mesh_square_cross, 
+                         mesh_square_concentric, 
+                         mesh_airbag_square_cross, 
+                         mesh_circle_square_cross]
     inputs = [16,8,1, params]
     nplots = len(meshing_functions) + 1
     
