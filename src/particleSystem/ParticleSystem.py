@@ -378,7 +378,7 @@ class ParticleSystem:
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
-        ax.set_aspect('equal')
+        ax.set_box_aspect([1,1,1])
         
         return ax
     
