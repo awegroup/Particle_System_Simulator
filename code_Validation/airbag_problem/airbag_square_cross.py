@@ -37,7 +37,7 @@ PS = ParticleSystem(connections, initial_conditions,params)
 Sim = Simulate_airbag(PS, params)
 
 if __name__ == '__main__':
-    Sim.run_simulation(plotframes=5, 
+    Sim.run_simulation(plotframes=0, 
                        plot_whole_bag = True,
                        printframes=50,
                        simulation_function = 'kinetic_damping')
