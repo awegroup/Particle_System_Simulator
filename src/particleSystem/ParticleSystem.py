@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
-import scipy.sparse 
+import scipy.sparse as sps
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -159,8 +159,8 @@ class ParticleSystem:
 
         jx, jv = self.__system_jacobians()
         
-        #jx = scipy.sparse.lil_array(jx)
-        #jv = scipy.sparse.lil_array(jv)
+        #jx = sps.lil_array(jx)
+        #jv = sps.lil_array(jv)
         
         # constructing A matrix and b vector for solver
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
@@ -168,7 +168,7 @@ class ParticleSystem:
 
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
-        #A = scipy.sparse.bsr_array(A)
+        #A = sps.bsr_array(A)
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
 
@@ -425,12 +425,12 @@ class ParticleSystem:
         tri = Delaunay(points_projected)
         
         # Finding areas of each triangle
-        v1 = points[tri.simplices][:,0]-points[tri.simplices][:,1]
-        v2 = points[tri.simplices][:,0]-points[tri.simplices][:,2]     
+        v1 = points[tri.simplices[:,0]]-points[tri.simplices[:,1]]
+        v2 = points[tri.simplices[:,0]]-points[tri.simplices[:,2]]
         
         # Next we set up the matrix multiplication that will divide the areas 
         # of the triangles over the actual nodes
-        conversion_matrix = np.zeros((self.__n*3,len(tri.simplices)*3))
+        #conversion_matrix = np.zeros((self.__n*3,len(tri.simplices)*3))
 
         v1_length = np.linalg.norm(v1, axis=1)
         v2_length = np.linalg.norm(v2, axis=1)
@@ -438,7 +438,7 @@ class ParticleSystem:
 
         angle_1 = np.arccos(np.sum(v1*v2, axis = 1)/(v1_length*v2_length))
         
-        # Next bit is a fix for an error due ot limited numerical accuracy
+        # Next bit is a fix for an error due to limited numerical accuracy
         inp = v2_length/v3_length * np.sin(angle_1)
         inp[inp>1] = 1
         angle_2 = np.arcsin(inp)
@@ -446,11 +446,23 @@ class ParticleSystem:
 
         angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten()/np.pi
         
+        # Sparse matrix construction
+        rows = []
+        cols = []
+        data = []
         for j, indices in enumerate(tri.simplices):
             for k, i in enumerate(indices):
-                conversion_matrix[3*i,3*j]+= angle_iterator[3*j+k]
-                conversion_matrix[3*i+1,3*j+1]+= angle_iterator[3*j+k]
-                conversion_matrix[3*i+2,3*j+2]+= angle_iterator[3*j+k]
+                for l in range(3):
+                    rows.append(3*i+l)
+                    cols.append(3*j+l)
+                    data.append(angle_iterator[3*j+k])
+        conversion_matrix = sps.csr_matrix((data, (rows, cols)), shape=(self.__n*3, len(tri.simplices)*3))
+        
+        #for j, indices in enumerate(tri.simplices):
+        #    for k, i in enumerate(indices):
+        #        conversion_matrix[3*i,3*j]+= angle_iterator[3*j+k]
+        #        conversion_matrix[3*i+1,3*j+1]+= angle_iterator[3*j+k]
+        #        conversion_matrix[3*i+2,3*j+2]+= angle_iterator[3*j+k]
         
         
         self.__simplices = tri.simplices 
@@ -489,15 +501,40 @@ class ParticleSystem:
         points = points.reshape((int(n/3),3))
         
         # Finding areas of each triangle
-        v1 = points[simplices][:,0]-points[simplices][:,1]
-        v2 = points[simplices][:,0]-points[simplices][:,2]
-
+        v1 = points[simplices[:,0]]-points[simplices[:,1]]
+        v2 = points[simplices[:,0]]-points[simplices[:,2]]
+        
+        # Calculate the area of the triangulated simplices
         area_vectors = np.cross(v1,v2)/2
+        
+        # Convert these to correct particle area magnitudes
+        # Summing vectors oposing directions cancel, which we need for finding
+        # the direction but diminishes the area magnitude. We need to correct
+        # for this by calculating them seperately and scaling the vector.
+        simplice_area_magnitudes = np.linalg.norm(area_vectors, axis=1)
+        logging.debug(f'{np.sum(simplice_area_magnitudes)=}')
+        
+        simplice_area_magnitudes_1d = np.outer(simplice_area_magnitudes,np.ones(3)).flatten()
+        particle_area_magnitudes_1d = conversion_matrix.dot(simplice_area_magnitudes_1d)
+        logging.debug(f'{np.sum(particle_area_magnitudes_1d)=}')
+        logging.debug(f'{np.sum(particle_area_magnitudes_1d[::3])=}')
         
         # Now we transorm the simplice areas into nodal areas
         input_vector = area_vectors.flatten()
-        area_vectors_1d = np.matmul(conversion_matrix,input_vector)
-        area_vectors_redistributed = area_vectors_1d.reshape((int(n/3),3))
+        area_vectors_1d_direction = conversion_matrix.dot(input_vector)
+        area_vectors_redistributed = area_vectors_1d_direction.reshape((int(n/3),3))
+        
+        # Scaling the vectors        
+        direction_magnitudes = np.linalg.norm(area_vectors_redistributed, axis = 1)
+        logging.debug(f'{np.sum(direction_magnitudes)=}')
+        
+        scaling_factor = particle_area_magnitudes_1d[::3] /direction_magnitudes
+        logging.debug(f'{scaling_factor=}')
+        
+        area_vectors_redistributed *= np.outer(scaling_factor,np.ones(3))
+        
+        logging.debug(f'After scaling {np.sum(np.linalg.norm(area_vectors_redistributed, axis=1))=}')
+
         
         return area_vectors_redistributed
     
@@ -558,4 +595,4 @@ if __name__ == "__main__":
     ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
     ps.plot()
-    pass
+    ps.plot_triangulated_surface()
