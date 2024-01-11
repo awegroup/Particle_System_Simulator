@@ -32,7 +32,7 @@ class ParticleSystem:
         initial_conditions :  npt.ArrayLike
             Array of n arrays to instantiate particles. Each subarray must 
             contain the params required for the particle constructor: 
-                [initial_pos, initial_vel, mass, fixed: bool, constraint]
+                [initial_pos, initial_vel, mass, fixed: bool, constraint, constraint_type]
         param sim_param : dict
             Dictionary of other parameters required for simulation (dt, rtol, ...)
         clean_particles : bool
@@ -69,14 +69,15 @@ class ParticleSystem:
         return
 
     def __str__(self):
-        print("ParticleSystem object instantiated with attributes\nConnectivity matrix:")
-        print(self.__connectivity_matrix)
-        print("Instantiated particles:")
+        description = ""
+        description +="ParticleSystem object instantiated with attributes\nConnectivity matrix:"
+        description += str(self.__connectivity_matrix)
+        description +="\n\nInstantiated particles:\n"
         n = 1
         for particle in self.__particles:
-            print(f" p{n}: ", particle)
+            description += f"p{n}: {particle}\n"
             n += 1
-        return ""
+        return description
 
     def __instantiate_particles(self, initial_conditions: list):
         for set_of_initial_cond in initial_conditions:
@@ -366,7 +367,8 @@ class ParticleSystem:
         
         if len(fixlist)>0:
             ax.scatter(fixlist[:,0],fixlist[:,1],fixlist[:,2], color = 'red', marker = 'o')
-        ax.scatter(freelist[:,0],freelist[:,1],freelist[:,2], color = 'blue', marker = 'o', s =5)
+        if len(freelist)>0:
+            ax.scatter(freelist[:,0],freelist[:,1],freelist[:,2], color = 'blue', marker = 'o', s =5)
         
         segments = []
         

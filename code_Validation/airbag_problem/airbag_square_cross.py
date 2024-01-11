@@ -24,7 +24,7 @@ params = {
     "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
     "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
     "max_iter": 1e5,  # [-]       maximum number of iterations]
-    "convergence_threshold": 1e-6, # [-]
+    "convergence_threshold": 1e-12, # [-]
     "min_iterations": 10, # [-]
     
     # sim specific settigns

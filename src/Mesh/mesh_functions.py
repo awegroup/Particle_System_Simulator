@@ -403,6 +403,7 @@ if __name__ == '__main__':
     pslist = []
     for i, function in enumerate(meshing_functions):
         ax = fig.add_subplot(rows, cols,i+1,projection='3d')
+        ax.set_box_aspect([1,1,1])
         if i ==2:
             inputs = inputs[1:]
         initial_conditions, connections = function(*inputs)

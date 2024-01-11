@@ -187,8 +187,10 @@ class Simulate_airbag(Simulate):
                 print(f'Just finished step {step}, it took {delta_time//60:.0f}m {delta_time%60:.2f}s, {d_crit_d_step=:.2g}')
         delta_time = current_time - start_time
         print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s')
-        
-        plt.plot(convergence_history)
+        fig_converge = plt.figure()
+        ax1 = fig_converge.add_subplot()
+        ax1.semilogy(convergence_history)
+        ax1.set_title('Convergence History')
         print(convergence_history)
         
     def plot_whole_airbag(self, 
