@@ -69,38 +69,43 @@ class OpticalForceCalculator(Force):
         return forces
     
     def calculate_specular_force(self, area_vectors, intensity_vectors):
-        abs_area_vectors = np.linalg.norm(area_vectors,axis=1)
-        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ vector
+        # abs_area_vectors = np.linalg.norm(area_vectors,axis=1)
+        # First we compute the incident power on the particle areas
+        abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
+        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ poynting vector
+        incident_power = abs_area_vectors * abs_intensity_vectors
         
-        # The next operation divides by abs_intensity_vectors, which is undone later
-        # this is to improve legibility because it is more analogous to the 
-        # cosine dot product rule 
-        cosine_factor = (np.sum(area_vectors * intensity_vectors, axis=1)
-                         /(abs_area_vectors * abs_intensity_vectors)
-                         )
-        forces = area_vectors.copy()
+        # To get the direction of the forces we need to normalise the area 
+        # vectors. For convenience we roll that into the force calculation of
+        # dF = dP/c. We double it because the PhC is acting in reflection
+        norms = np.linalg.norm(area_vectors, axis=1)
+        area_normals = area_vectors.copy()
         for i in range(3):
-            forces[:,i] *= abs_intensity_vectors * cosine_factor / c
-        return forces
+            area_normals[:,i] *= 2*incident_power / (c*norms)
+            
+        
+        return area_normals
     
     def calculate_axicongrating_force(self, area_vectors, intensity_vectors, axicon_angle):
         rotation_super_matrix = sp.linalg.block_diag(*axicon_angle)
-        area_vectors = rotation_super_matrix.dot(np.hstack(area_vectors).T)
-        area_vectors = np.reshape(area_vectors, [int(area_vectors.shape[0]/3),3])
+        # area_vectors = rotation_super_matrix.dot(np.hstack(area_vectors).T)
+        # area_vectors = np.reshape(area_vectors, [int(area_vectors.shape[0]/3),3])
         
+        forces = self.calculate_specular_force(area_vectors, intensity_vectors)
+        forces = rotation_super_matrix.dot(np.hstack(forces).T)
+        forces = np.reshape(forces, [int(forces.shape[0]/3),3])
         
-        abs_area_vectors = np.linalg.norm(area_vectors,axis=1)
-        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ vector
+        # The forces need to be scaled to account for the fact that 
+        # |[1,1]| != |[1]|+|[1]|
+        # We don't have acces to the angle, but we can make use of the cosine 
+        # rule: cos(alpha) = A.dot(B) / (|A| |B|) to get the angle between 
+        # z+ and the line of action of the force. 
+        unit_z = np.array([0,0,1])
+        scaling_factor = np.matmul(axicon_angle, unit_z).dot(unit_z)
         
-        # The next operation divides by abs_intensity_vectors, which is undone later
-        # this is to improve legibility because it is more analogous to the 
-        # cosine dot product rule 
-        cosine_factor = (np.sum(area_vectors * intensity_vectors, axis=1)
-                         /(abs_area_vectors * abs_intensity_vectors)
-                         )
-        forces = area_vectors.copy()
         for i in range(3):
-            forces[:,i] *= abs_intensity_vectors * cosine_factor / c
+            forces[:,i]*=scaling_factor
+        
         return forces
     
     def create_optical_type_mask(self):
@@ -198,11 +203,10 @@ class OpticalForceCalculator(Force):
             displacement in meters. Next three values represent
             tilt angle around the centre of mass in degrees.
         """
-        
+        PS = self.ParticleSystem
         if len(displacement) != 6: 
             raise AttributeError("Expected list of 6 arguments representing "
                                  "x,y,z,rx,ry,rz, got list of length {} instead".format(len(displacement)))
-        
         self.ParticleSystem.current_displacement = displacement 
         
         qx, qy, qz, *_ = displacement
@@ -249,6 +253,7 @@ class OpticalForceCalculator(Force):
             [x,y,z] vector of center of mass
 
         """
+        PS = self.ParticleSystem
         locations, _ = PS.x_v_current_3D
         COM = np.mean(locations,axis=0)
         return COM
@@ -296,6 +301,7 @@ class OpticalForceCalculator(Force):
             Net moments around center of mass.
 
         """
+        PS = self.ParticleSystem
         forces = self.force_value()
         net_force = np.sum(forces,axis=0)
         
@@ -384,6 +390,9 @@ if __name__ == "__main__":
     a_w = forces[:,2]
     ax.scatter(x,y,z)
     ax.quiver(x,y,z,a_u,a_v,a_w, length = 0.1)
+    ax.set_box_aspect([1,1,1])
+    ax.set_zlim(-5, 5)
+    #ax.set_zscale('symlog')
 
     #ax2 = fig.add_subplot(projection='3d')
     #LB.plot(ax2, x_range = [0,10], y_range=[0,10])
