@@ -183,8 +183,8 @@ class OpticalForceCalculator(Force):
         
         displacement =  displacement_vector[displacement_vector !=0]
         if len(displacement)>1: 
-            raise AttributeError(f"Expected vector with only one nonzero value,"
-                                 "instead got {displacement_vector}")
+            raise AttributeError("Expected vector with only one nonzero value,"
+                                 f"instead got {displacement_vector}")
         
         k_trans = (reaction[0] - original[0])/displacement
         k_rot = (reaction[1] - original[1])/displacement
@@ -207,17 +207,25 @@ class OpticalForceCalculator(Force):
         if len(displacement) != 6: 
             raise AttributeError("Expected list of 6 arguments representing "
                                  "x,y,z,rx,ry,rz, got list of length {} instead".format(len(displacement)))
+        if hasattr(self.ParticleSystem, 'current_displacement'): #
+            if (type(self.ParticleSystem.current_displacement) != type(None)
+                and not 
+                np.all(self.ParticleSystem.current_displacement == -np.array(displacement))):
+                # I want to allow this behavior, but also inform user that by doing it this way they're breaking stuff
+                logging.warning(f"Particle system is already displaced: {self.ParticleSystem.current_displacement=}; displace_particle_system called multiple times without un-displacing. un-displacing is now broken.")
         self.ParticleSystem.current_displacement = displacement 
         
         qx, qy, qz, *_ = displacement
-        COM = self.find_center_of_mass()
         locations, _ = PS.x_v_current_3D
         
+        # To apply rotations around COM we need to place it at the origin first
+        COM = self.find_center_of_mass()
         self.translate_mesh(locations, -COM)
              
         new_locations = self.rotate_mesh(locations, displacement[3:])
         new_locations = self.translate_mesh(new_locations, displacement[:3])
         
+        # Put back system in original location
         new_locations = self.translate_mesh(new_locations, COM)
         
         for i, location in enumerate(new_locations):
@@ -230,16 +238,34 @@ class OpticalForceCalculator(Force):
         Reverses current mesh displacement of the associated particle system.
 
         """
+        
         if not hasattr(self.ParticleSystem, 'current_displacement'):
             raise AttributeError("Particle System is not currently displaced")
+        
         elif type(self.ParticleSystem.current_displacement) == type(None):
             raise AttributeError("Particle System is not currently displaced")
             
-        
+        PS = self.ParticleSystem
         current_displacement = self.ParticleSystem.current_displacement
         reverse_displacement = -np.array(current_displacement)
         
-        self.displace_particle_system(reverse_displacement)
+        qx, qy, qz, *_ = reverse_displacement
+        locations, _ = PS.x_v_current_3D
+        
+        # To apply rotations around COM we need to place it at the origin first
+        COM = self.find_center_of_mass()
+        self.translate_mesh(locations, -COM)
+            
+        # Extra syntax is to apply rotations in reverse order
+        new_locations = self.rotate_mesh(locations, reverse_displacement[3:][::-1], order = 'xyz')
+        new_locations = self.translate_mesh(new_locations, reverse_displacement[:3])
+        
+        # Put back system in original location
+        new_locations = self.translate_mesh(new_locations, COM)
+        
+        for i, location in enumerate(new_locations):
+            # 'Unsafe' update needed to move fixed particles as well
+            self.ParticleSystem.particles[i].update_pos_unsafe(location)
         
         self.ParticleSystem.current_displacement = None
     
@@ -255,10 +281,31 @@ class OpticalForceCalculator(Force):
         """
         PS = self.ParticleSystem
         locations, _ = PS.x_v_current_3D
-        COM = np.mean(locations,axis=0)
+        masses = np.array([p.m for p in PS.particles])
+        total_mass = np.sum(masses)
+        weighing_vector = masses/total_mass
+        for i in range(3):
+            locations[:,i]*=weighing_vector
+        COM = np.sum(locations,axis=0)
         return COM
     
     def translate_mesh(self, mesh, translation):
+        """
+        Translates mesh locations
+
+        Parameters
+        ----------
+        mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+        translation : list
+            x, y, z axis translations
+
+        Returns
+        -------
+        mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+
+        """
         qx, qy, qz = translation
         
         mesh[:,0] += qx
@@ -267,7 +314,7 @@ class OpticalForceCalculator(Force):
         
         return mesh
     
-    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list):
+    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list, order = 'zyx'):
         """
         Rotates mesh locations
 
@@ -285,7 +332,7 @@ class OpticalForceCalculator(Force):
 
         """
         gamma, beta, alpha = rotations
-        rotation_matrix = Rotation.from_euler('zyx', [alpha, beta, gamma], degrees=True)
+        rotation_matrix = Rotation.from_euler(order, [alpha, beta, gamma], degrees=True)
         rotated_mesh = np.matmul(rotation_matrix.as_matrix(), mesh.T).T
         return rotated_mesh
     
@@ -340,7 +387,6 @@ vectorized_optical_type_retriever = np.vectorize(lambda  p: p.optical_type)
 
 
 if __name__ == "__main__":
-    from src.particleSystem.ParticleSystem import ParticleSystem
     from code_Validation.saddle_form import saddle_form
     from src.ExternalForces.LaserBeam import LaserBeam
     import matplotlib.pyplot as plt
