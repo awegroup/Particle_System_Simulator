@@ -18,6 +18,8 @@ import src.Mesh.mesh_functions as MF
 
 class TestOpticalForceCalculator(unittest.TestCase):
     def setUp(self):
+        
+        # Set up ParticleSystem
         self.params = {
             # model parameters
             "k": 1,  # [N/m]   spring stiffness
@@ -41,7 +43,11 @@ class TestOpticalForceCalculator(unittest.TestCase):
                                  clean_particles = False)
         
         self.PS.initialize_find_surface() 
+        self.PS.calculate_correct_masses(1e-3, # [m] thickness
+                                         1000) # [kg/m3] density
+        self.mass = 1*1*1e-3 * 1000
         
+        # Set up some sample LaserBeam instances
         I_0 = 100e9 /(10*10) # 100 GW divided over 100 square meters
         mu_x = 5
         mu_y = 5
@@ -51,25 +57,24 @@ class TestOpticalForceCalculator(unittest.TestCase):
                        lambda x,y: [0,1])
         self.LB_flat = LaserBeam(lambda x, y: np.ones(x.shape)*I_0, lambda x,y: [0,1])
     
-    def test_specular_flat(self):
-        expected_force = 2*100e9/(10*10) / c 
+        # Set up general purpose OpticalForceCalculator
         for particle in self.PS.particles:
             particle.optical_type = ParticleOpticalPropertyType.SPECULAR
             
-        OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
+        self.OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
+        
+    
+    
+    def test_specular_flat(self):
+        expected_force = 2*100e9/(10*10) / c 
+        OpticalForces = self.OpticalForces
         forces = OpticalForces.force_value()
         net_force = sum(np.linalg.norm(forces, axis=1))
         self.assertAlmostEqual(net_force, expected_force)
         
     def test_specular_45deg_x(self):
         expected_force =2*100e9/(10*10) / c 
-        
-        # Assign optical properties
-        for particle in self.PS.particles:
-            particle.optical_type = ParticleOpticalPropertyType.SPECULAR
-        
-        # Init calculator 
-        OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
+        OpticalForces = self.OpticalForces
         
         # Rotate the PS, calculate forces, put it back 
         OpticalForces.displace_particle_system([0,0,0,45,0,0])
@@ -99,13 +104,7 @@ class TestOpticalForceCalculator(unittest.TestCase):
     
     def test_specular_45deg_y(self):
         expected_force = 2*100e9/(10*10) / c 
-        
-        # Assign optical properties
-        for particle in self.PS.particles:
-            particle.optical_type = ParticleOpticalPropertyType.SPECULAR
-        
-        # Init calculator 
-        OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
+        OpticalForces = self.OpticalForces
         
         # Rotate the PS, calculate forces, put it back 
         OpticalForces.displace_particle_system([0,0,0,0,45,0])
@@ -136,7 +135,7 @@ class TestOpticalForceCalculator(unittest.TestCase):
     
     def test_specular_pyramid(self):
         expected_force = 2*100e9/(10*10) / c 
-
+        OpticalForces = self.OpticalForces
         # Stretch PS into pyramid shape, which incrases surface area by sqrt(2)
         height = lambda x, y: min(0.5 - abs(x - 0.5), 0.5 - abs(y - 0.5))
         for particle in self.PS.particles:
@@ -144,10 +143,6 @@ class TestOpticalForceCalculator(unittest.TestCase):
             z = height(x,y)
             particle.x[2]= z
         
-        for particle in self.PS.particles:
-            particle.optical_type = ParticleOpticalPropertyType.SPECULAR
-            
-        OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
         forces = OpticalForces.force_value()
         
         # Net force should be increased due to increase in surface area, but 
@@ -184,6 +179,78 @@ class TestOpticalForceCalculator(unittest.TestCase):
                 net_force = sum(np.linalg.norm(forces, axis=1))
                 self.assertAlmostEqual(net_force, expected_force)
 
+    def test_find_center_of_mass(self):
+        expected_COM = [0.5, 0.5, 0]
+        OpticalForces = self.OpticalForces
+        
+        COM = OpticalForces.find_center_of_mass()
+        for i in range(3):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(COM[i], expected_COM[i])
+        
+        # Now we inflate and re-test
+        expected_COM = [0.5, 0.5, 0.5/3]
+        height = lambda x, y: min(0.5 - abs(x - 0.5), 0.5 - abs(y - 0.5))
+        for particle in self.PS.particles:
+            x,y,_ = particle.x
+            z = height(x,y)
+            particle.x[2]= z
+        
+        COM = OpticalForces.find_center_of_mass()
+        for i in range(3):
+            with self.subTest(i=i+3):
+                self.assertAlmostEqual(COM[i], expected_COM[i], places = 3)
+    
+    def test_translate_mesh(self):
+        OpticalForces = OpticalForceCalculator(self.PS, self.LB_flat)
+        mesh = OpticalForces.translate_mesh(np.zeros([10,3]), np.ones([3]))
+        
+        self.assertEqual(np.all(mesh == np.ones([10,3])), True)
+    
+    def test_rotate_mesh(self):
+        OpticalForces = self.OpticalForces
+        mesh = np.meshgrid(np.linspace(0, 1, 6),
+                           np.linspace(0, 1, 6))
+        mesh = np.column_stack(list(zip(mesh[0],mesh[1]))).T
+        mesh = np.column_stack((mesh,np.zeros(len(mesh)).T))
+        
+        original = mesh.copy()
+        
+        for i in range(3):
+            mesh = OpticalForces.rotate_mesh(mesh, [0,0,120])
+        
+        diff = np.sum(mesh-original)
+        self.assertAlmostEqual(diff, 0)
+    
+    def test_displace_particle_system(self):
+        OpticalForces = self.OpticalForces
+        
+        with self.subTest(i=0):
+            expected_COM = np.array([0.5, 0.5, 0]) + 1
+            OpticalForces.displace_particle_system([1,1,1,0,0,0])
+            COM = OpticalForces.find_center_of_mass()
+            OpticalForces.un_displace_particle_system()
+            self.assertAlmostEqual(np.sum(expected_COM-COM), 0)
+        
+        with self.subTest(i=1):
+            x_0,_ = self.PS.x_v_current_3D
+            logging.warning("Two displacement warnings expected as part of test")
+            for i in range(3):
+                # this function will issue a warning when called the second and third times
+                OpticalForces.displace_particle_system([0,0,0,0,0,120]) 
+            self.PS.current_displacement = [0,0,0,0,0,0]
+            x_1,_ = self.PS.x_v_current_3D
+            error = x_1 - x_0
+            self.assertAlmostEqual(np.sum(error), 0)
+        
+    def test_un_displace_particle_system(self):
+        OpticalForces = self.OpticalForces
+        expected_COM = np.array([0.5, 0.5, 0])
+        OpticalForces.displace_particle_system([0,0,0,45,45,45])
+        COM = OpticalForces.find_center_of_mass()
+        OpticalForces.un_displace_particle_system()
+        self.assertAlmostEqual(np.sum(expected_COM-COM), 0)
+        
 if __name__ == '__main__':
     unittest.main()
     
