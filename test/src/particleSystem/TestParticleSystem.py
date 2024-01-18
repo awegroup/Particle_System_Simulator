@@ -5,6 +5,7 @@ Created on Tue Jan  9 13:01:32 2024
 @author: Mark
 """
 import unittest
+import logging
 
 import numpy as np
 
