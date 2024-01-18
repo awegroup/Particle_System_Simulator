@@ -490,7 +490,7 @@ class ParticleSystem:
         
         if not hasattr(self, '_ParticleSystem__surface_conversion_matrix'):
             logging.warning('find_surface called without prior initialization.')
-            simplices, conversion_matrix = self.initialize_find_surface()
+            simplices, conversion_matrix = self.initialize_find_surface(projection_plane)
             self.__simplices = simplices 
             self.__surface_conversion_matrix = conversion_matrix
         else: 
@@ -565,6 +565,17 @@ class ParticleSystem:
         ax.quiver(x,y,z,a_u,a_v,a_w, length = 1)
 
         return ax
+    
+    def calculate_correct_masses(self, thickness, density):
+        areas = np.linalg.norm(self.find_surface(), axis=1)
+        masses = areas * thickness * density
+        for i, particle in enumerate(self.particles):
+            particle.set_m(masses[i])
+        
+        # Recalculate mass matrix
+        self.__m_matrix = self.__construct_m_matrix()
+
+        
 
 
 if __name__ == "__main__":
