@@ -40,6 +40,15 @@ class OpticalForceCalculator(Force):
         return ""
     
     def force_value(self):
+        """
+        Calculates optical forces based on optical properties of ParticleSystem and LaserBeam
+
+        Returns
+        -------
+        forces : npt.NDArray
+            flattened array of external forces of length 3 * n_particles.
+
+        """
         PS = self.ParticleSystem
         LB = self.LaserBeam
         area_vectors = PS.find_surface()
@@ -64,11 +73,27 @@ class OpticalForceCalculator(Force):
                 filtered_particles = compress(PS.particles, mask)
                 axicon_angle = [i.axicon_angle for i in filtered_particles]
                 forces[mask] = self.calculate_axicongrating_force(area_vectors[mask], intensity_vectors[mask], axicon_angle)
-        
 
         return forces
     
     def calculate_specular_force(self, area_vectors, intensity_vectors):
+        """
+        Calculates forces for particles of optical type 'specular'
+        
+        !!! TODO implement reflectivity coefficient
+
+        Parameters
+        ----------
+        area_vectors : npt.NDArray
+            n_particles x 3 array of area vectors
+        intensity_vectors : npt.NDArray
+            n_particles x 3 array of laser beam intensity vectors
+
+        Returns
+        -------
+        forces : npt.NDArray
+            flattened array of external forces of length 3 * n_particles.
+        """
         # abs_area_vectors = np.linalg.norm(area_vectors,axis=1)
         # First we compute the incident power on the particle areas
         abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
@@ -87,6 +112,25 @@ class OpticalForceCalculator(Force):
         return area_normals
     
     def calculate_axicongrating_force(self, area_vectors, intensity_vectors, axicon_angle):
+        """
+        Calculates forces for particles of optical type 'axicon grating'
+
+        Parameters
+        ----------
+        area_vectors : npt.NDArray
+            n_particles x 3 array of area vectors
+        intensity_vectors : npt.NDArray
+            n_particles x 3 array of laser beam intensity vectors
+        axicon_angle : npt.NDArray
+            3 x 3 array representing a rotation of the surface normal vector
+            this determines the directions of the resulting optical forces
+
+
+        Returns
+        -------
+        forces : npt.NDArray
+            flattened array of external forces of length 3 * n_particles.
+        """
         rotation_super_matrix = sp.linalg.block_diag(*axicon_angle)
         # area_vectors = rotation_super_matrix.dot(np.hstack(area_vectors).T)
         # area_vectors = np.reshape(area_vectors, [int(area_vectors.shape[0]/3),3])
@@ -111,6 +155,9 @@ class OpticalForceCalculator(Force):
     def create_optical_type_mask(self):
         """
         loops over particles and sets a dict of masks onto self formatted as {type:mask}
+        
+        This is used to efficiently split computation of the different particle 
+        types without resorting to repeated looping. 
 
         Raises
         ------
@@ -175,16 +222,35 @@ class OpticalForceCalculator(Force):
 
     
     def calculate_force_gradient(self, displacement_vector : npt.ArrayLike):
-        
+        """
+        Calculates force and moment coefficients of ParticleSystems based on a 1 DOF displacement
+
+        Parameters
+        ----------
+        displacement_vector : npt.ArrayLike
+            1x6 vector ([x,y,z,rx,ry,rz]) representing the displacement. All but one should be equal to zero
+
+        Raises
+        ------
+        AttributeError
+            Raises error if multiple displacements are supplied.
+
+        Returns
+        -------
+        k_trans : list
+            lenght 3 list of translational reaction coefficients [dF_x/dx__i, dF_y/dx__i, dF_z/dx__i]
+        k_rot : TYPE
+            lenght 3 list of translational reaction coefficients [dM_x/dx__i, dM_y/dx__i, dM_z/dx__i]
+        """
+        displacement =  displacement_vector[displacement_vector !=0]
+        if len(displacement)>1: 
+            raise AttributeError("Expected vector with only one nonzero value,"
+                                 f"instead got {displacement_vector}")   
+            
         original = self.calculate_restoring_forces()
         self.displace_particle_system(displacement_vector)
         reaction = self.calculate_restoring_forces()
         self.un_displace_particle_system()
-        
-        displacement =  displacement_vector[displacement_vector !=0]
-        if len(displacement)>1: 
-            raise AttributeError("Expected vector with only one nonzero value,"
-                                 f"instead got {displacement_vector}")
         
         k_trans = (reaction[0] - original[0])/displacement
         k_rot = (reaction[1] - original[1])/displacement
@@ -354,11 +420,10 @@ class OpticalForceCalculator(Force):
         
         COM = self.find_center_of_mass()
         locations, _ = PS.x_v_current_3D
-        moment_arms = self.translate_mesh(locations, -COM)
+        moment_arms = self.translate_mesh(locations, -COM) # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
         moments = np.cross(forces, moment_arms)
         net_moments = np.sum(moments,axis=0)
 
-        
         return net_force, net_moments
         
 class ParticleOpticalPropertyType(Enum):
