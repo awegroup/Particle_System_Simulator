@@ -128,7 +128,10 @@ class Particle(SystemObject):
     @property
     def m(self):
         return self.__m
-
+    
+    def set_m(self, m):
+        self.__m = m
+    
     @property
     def fixed(self):
         return self.__fixed
@@ -143,6 +146,8 @@ class Particle(SystemObject):
     @property
     def constraint_type(self):
         return self.__constraint_type
+    
+
 
 if __name__ == "__main__":
     position = [0, 0, 0]
