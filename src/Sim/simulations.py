@@ -189,6 +189,10 @@ class Simulate_airbag(Simulate):
             
             if printframes and step%printframes==0:
                 print(f'Just finished step {step}, it took {delta_time//60:.0f}m {delta_time%60:.2f}s, {d_crit_d_step=:.2g}')
+            if step > self.params['t_steps']:
+                converged = True
+        
+        
         delta_time = current_time - start_time
         print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s')
         fig_converge = plt.figure()
