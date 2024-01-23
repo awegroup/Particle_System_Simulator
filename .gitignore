@@ -24,3 +24,6 @@ db.sqlite3-journal
 
 # Cython debug symbols
 cython_debug/
+
+# Prevent sync of primary dumping ground
+temp/*
