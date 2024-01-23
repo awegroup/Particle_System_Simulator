@@ -330,5 +330,7 @@ if __name__ == '__main__':
     Sim = Simulate_1d_Stretch(PS, params)
     Sim.run_simulation()
     Sim.plot_results()
-    
+    for key in Sim.history.keys():
+        reaction, poisson = Sim.history[key]
+        print(f"Strain {key}, {reaction=}, {poisson=}")
 
