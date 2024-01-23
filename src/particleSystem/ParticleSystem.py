@@ -28,11 +28,12 @@ class ParticleSystem:
         ---------
         connectivity_matrix : list
             2-by-m matrix, where each column contains a nodal index pair that 
-            is connectedby a spring element.
+            is connectedby a spring element:
+                [ p1: Particle, p2: Particle, k: float, c: float, optional : linktype]
         initial_conditions :  npt.ArrayLike
             Array of n arrays to instantiate particles. Each subarray must 
             contain the params required for the particle constructor: 
-                [initial_pos, initial_vel, mass, fixed: bool, constraint, constraint_type]
+                [initial_pos, initial_vel, mass, fixed: bool, constraint, optional : constraint_type]
         param sim_param : dict
             Dictionary of other parameters required for simulation (dt, rtol, ...)
         clean_particles : bool
