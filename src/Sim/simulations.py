@@ -56,7 +56,7 @@ class Simulate_1d_Stretch(Simulate):
             converged = False
             convergence_history = []
             while not converged:
-                PS.simulate()
+                PS.kin_damp_sim()
                     
                 #convergence check
                 ptp_range = MF.ps_find_strip_dimentions(self.PS, midstrip_indices)
@@ -67,11 +67,13 @@ class Simulate_1d_Stretch(Simulate):
                 
                 e_kin = self.PS.kinetic_energy
                 convergence_history.append(e_kin)
-                
-                if len(convergence_history)>5:
-                    if abs(convergence_history[-1]-convergence_history[-2]) < 1e-15:
+                step = len(convergence_history)
+                if step>5:
+                    crit = abs(convergence_history[-1]-convergence_history[-2]) 
+                    if crit < 1e-15:
                         converged = True
-                        
+                    if not step%10:
+                        print(f'Just finished {step=}, {crit=}')
             finished_time = time.time()
             delta_time = finished_time - starting_time
             
