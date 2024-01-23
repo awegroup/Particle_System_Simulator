@@ -240,6 +240,46 @@ class ParticleSystem:
 
         return self.__f
 
+    # def __system_jacobians(self):
+    #     self.__jx[self.__jx != 0] = 0
+    #     self.__jv[self.__jv != 0] = 0
+
+    #     for n in range(len(self.__springdampers)):
+    #         jx, jv = self.__springdampers[n].calculate_jacobian()
+    #         i, j, *_ = self.__connectivity_matrix[n]
+    #         if self.__particles[i].fixed:
+    #             if self.__particles[i].constraint_type == 'point': 
+    #                 jxplus = np.zeros([3,3])
+    #                 jvplus = jxplus
+    #             else:
+    #                 jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
+    #                 jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
+    #         else: 
+    #             jxplus = jx
+    #             jvplus = jv
+            
+    #         if self.__particles[j].fixed:
+    #             if self.__particles[j].constraint_type == 'point': 
+    #                 jxmin = np.zeros([3,3])
+    #                 jvmin = jxmin
+    #             else:
+    #                 jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
+    #                 jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
+    #         else: 
+    #             jxmin = jx
+    #             jvmin = jv
+            
+    #         self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jxplus
+    #         self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jxplus
+    #         self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jxmin
+    #         self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jxmin
+
+    #         self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jvplus
+    #         self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jvplus
+    #         self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jvmin
+    #         self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jvmin
+
+    #     return self.__jx, self.__jv
     def __system_jacobians(self):
         self.__jx[self.__jx != 0] = 0
         self.__jv[self.__jv != 0] = 0
@@ -247,40 +287,19 @@ class ParticleSystem:
         for n in range(len(self.__springdampers)):
             jx, jv = self.__springdampers[n].calculate_jacobian()
             i, j, *_ = self.__connectivity_matrix[n]
-            if self.__particles[i].fixed:
-                if self.__particles[i].constraint_type == 'point': 
-                    jxplus = np.zeros([3,3])
-                    jvplus = jxplus
-                else:
-                    jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
-                    jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
-            else: 
-                jxplus = jx
-                jvplus = jv
-            
-            if self.__particles[j].fixed:
-                if self.__particles[j].constraint_type == 'point': 
-                    jxmin = np.zeros([3,3])
-                    jvmin = jxmin
-                else:
-                    jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
-                    jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
-            else: 
-                jxmin = jx
-                jvmin = jv
-            
-            self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jxplus
-            self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jxplus
-            self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jxmin
-            self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jxmin
 
-            self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jvplus
-            self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jvplus
-            self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jvmin
-            self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jvmin
+            self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jx
+            self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jx
+            self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jx
+            self.__jx[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jx
+
+            self.__jv[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jv
+            self.__jv[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jv
+            self.__jv[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jv
+            self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
 
         return self.__jx, self.__jv
-
+    
     def __update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
         for i in range(self.__n):
             self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
