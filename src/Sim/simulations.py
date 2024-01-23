@@ -8,6 +8,8 @@ This module includes tools to aid in simulation, as well as some pre-baked simul
 """
 
 import time
+import logging
+
 import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
@@ -238,6 +240,57 @@ class Simulate_airbag(Simulate):
         
         return ax
 
+
+class SimulateTripleChainWithMass(Simulate): # Simulate chain of  links joining in the  center where there is a large mass.
+    def __init__(self, ParticleSystem, params):
+        self.PS = ParticleSystem
+        self.params = params
+        
+        
+    def run_simulation(self):
+        
+        # Calculate external forces
+        forces = -1*9.81*np.array([p.m for p in self.PS.particles])
+        forces = np.outer(forces, [0,0,1]).flatten()
+        
+        converged = False
+        self.convergence_history = {'e_kin': [],
+                                    'x': [],
+                                    'v': [],
+                                    'f_int': []
+                                    }
+        self.PS.step = 0
+        max_steps = self.params['max_sim_steps']
+        info_dump_divisor = int(max_steps/100)
+        while not converged:
+            x,v = self.PS.kin_damp_sim(forces)
+            
+            self.PS.step+=1
+            
+            #internal_forces = [sd.force_value() for sd in self.PS.springdampers]
+            #force_mag = np.linalg.norm(internal_forces, axis = 1)
+            #residual = force_mag - np.mean(force_mag) 
+            #rms_res = np.sqrt(np.mean(residual*residual))
+            
+            #total_velocity = np.sum(np.array([p.v for p in self.PS.particles]))
+            
+            e_kin = self.PS.kinetic_energy
+            f_int = [sd.force_value() for sd in self.PS.springdampers]
+            
+            self.convergence_history['e_kin'].append(e_kin)
+            self.convergence_history['x'].append(x) 
+            self.convergence_history['v'].append(v)
+            self.convergence_history['f_int'].append(f_int)
+            
+            if len(self.convergence_history['e_kin'])>100:
+                recent_movement = np.mean(self.convergence_history['e_kin'][-10:-1])
+                if self.PS.step%info_dump_divisor == 0:
+                    logging.info(f'{self.PS.step=}, {recent_movement=}')
+                if recent_movement<self.params['convergence_threshold']: 
+                    converged = True 
+            if self.PS.step>max_steps :
+                logging.warning(f"Simulation exceeded limit with {self.PS.step=}>{max_steps=}")
+                converged = True
             
 if __name__ == '__main__':
     params = {
