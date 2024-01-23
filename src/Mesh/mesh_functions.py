@@ -77,6 +77,43 @@ def mesh_square_cross(length, width, mesh_edge_length, params = params):
     
     return initial_conditions, connections    
 
+def mesh_square_cross_sparse(length, width, mesh_edge_length, params = params):
+    n_wide = int(width/ mesh_edge_length + 1)
+    n_long = int(length/ mesh_edge_length + 1)
+    
+
+    mesh = np.meshgrid(np.linspace(0, length, n_long),
+                       np.linspace(0, width, n_wide))
+    
+    initial_conditions = []
+    xy_coordinates = np.column_stack(list(zip(mesh[0],mesh[1]))).T
+    xyz_coordinates = np.column_stack((xy_coordinates,np.zeros(len(xy_coordinates)).T))
+    
+    for xyz in xyz_coordinates:
+        initial_conditions.append([xyz, np.zeros(3), params['m_segment'], False])
+        
+    connections = []
+    #We know that all the nodes are connected to those of the next row, which is grid_length+1 units further
+    flip = True
+    for i, node in enumerate(initial_conditions[:-n_long]): # adding connextions in y-axis
+        connections.append([i, i+n_long, params['k'], params['c']])
+        
+        if (i+1)%(n_long): #cross connections
+            if flip:
+                connections.append([i, i+n_long+1, params['k_d'], params['c']])
+                flip = False
+            else:
+                connections.append([i+1, i+n_long, params['k_d'], params['c']])
+                flip= True
+        else:
+            flip = not flip
+            
+    # We can do the same for the connections between the columns
+    for i, node in enumerate(initial_conditions): # adding connections in x-axis
+        if (i+1)%(n_long): # Using modulus operator to exclude the nodes at the end of a row
+            connections.append([i, i+1, params['k'], params['c']])
+    
+    return initial_conditions, connections    
 
 def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer = False):
     n_long = int(length/ mesh_edge_length + 1)
@@ -124,9 +161,13 @@ def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer 
     
     return initial_conditions, connections   
 
-def mesh_airbag_square_cross(length, mesh_edge_length, params = params, noncompressive = False):
+def mesh_airbag_square_cross(length, mesh_edge_length, params = params, noncompressive = False, sparse = False):
     
-    initial_conditions, connections = mesh_square_cross(length, 
+    if sparse:
+        meshfunct = mesh_square_cross_sparse
+    else:
+        meshfunct = mesh_square_cross
+    initial_conditions, connections = meshfunct(length, 
                                                         length, 
                                                         mesh_edge_length, 
                                                         params)
@@ -385,8 +426,10 @@ if __name__ == '__main__':
         "max_iter": 1e5,  # [-]       maximum number of iterations]
         }
     
+    # !!! Don't forget to add new meshing functions to this list!
     meshing_functions = [mesh_square, 
                          mesh_square_cross, 
+                         mesh_square_cross_sparse,
                          mesh_square_concentric, 
                          mesh_airbag_square_cross, 
                          mesh_circle_square_cross]
@@ -404,7 +447,7 @@ if __name__ == '__main__':
     for i, function in enumerate(meshing_functions):
         ax = fig.add_subplot(rows, cols,i+1,projection='3d')
         ax.set_box_aspect([1,1,1])
-        if i ==2:
+        if i ==3:
             inputs = inputs[1:]
         initial_conditions, connections = function(*inputs)
         PS = ParticleSystem(connections, initial_conditions, params)
