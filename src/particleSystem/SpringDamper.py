@@ -151,6 +151,10 @@ class SpringDamper(ImplicitForce):
         return (self.p1.x, self.p2.x)
     
     @property
+    def l(self):
+        return np.linalg.norm(self.p1.x - self.p2.x)
+    
+    @property
     def l0(self):
         return self.__l0
     

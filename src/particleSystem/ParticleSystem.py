@@ -367,7 +367,7 @@ class ParticleSystem:
         v = np.reshape(v, (int(len(v)/3),3))
         return x, v
 
-    def plot(self, ax=None):
+    def plot(self, ax=None, colors = None):
         """"Plots current system configuration"""
         if ax == None:
             fig = plt.figure()
@@ -394,8 +394,23 @@ class ParticleSystem:
         
         for link in self.__springdampers:
             segments.append(link.line_segment())
-            
-        lc = Line3DCollection(segments, colors = 'black', linewidths = 0.5)  
+        
+
+        if colors == 'strain':
+            colors = []
+            strains = np.array([(sd.l-sd.l0)/sd.l0 for sd in self.__springdampers])
+            s_range = max(abs(strains.max()),abs(strains.min()))
+            for strain_i in strains:
+                if strain_i>0:
+                    colors.append((0,0,strain_i/s_range,1))
+                elif strain_i<0:
+                    colors.append((strain_i/s_range,0,0,1))
+                else:
+                    colors.append((0,0,0,1))
+        else:
+            colors = 'black'
+
+        lc = Line3DCollection(segments, colors = colors, linewidths = 0.5)  
         ax.add_collection3d(lc)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
