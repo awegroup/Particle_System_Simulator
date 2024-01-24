@@ -138,8 +138,8 @@ class Particle(SystemObject):
     
     def set_fixed(self, fixed, constraint = None, constraint_type = 'free'):
         self.__fixed = fixed
-        self.validate_constraint(constraint)
         self.__constraint_type = constraint_type
+        self.validate_constraint(constraint)
         if self.__fixed:
             self.constraint_projection()
         
