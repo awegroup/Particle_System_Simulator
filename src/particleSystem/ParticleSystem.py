@@ -70,7 +70,8 @@ class ParticleSystem:
         self.__x_min2 = np.zeros(self.__n, )
         
         # setup some recording
-        self.__history = {'dt':[]}
+        self.__history = {'dt':[],
+                          'E_kin':[]}
         return
 
     def __str__(self):
@@ -213,9 +214,14 @@ class ParticleSystem:
             logging.debug(f'Adaptive timestepping triggered {dt=}')
         else:
             x_next = x_current + self.__dt * v_next
+            self.__history['dt'].append(self.__dt)
 
         # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
         self.__update_x_v(x_next, v_next)
+        
+        # Recording data about the timestep:
+        self.__history['E_kin'].append(self.__calc_kin_energy())
+
         return x_next, v_next
 
     def kin_damp_sim(self, 
