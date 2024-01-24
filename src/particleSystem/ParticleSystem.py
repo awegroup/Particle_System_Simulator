@@ -208,7 +208,7 @@ class ParticleSystem:
         v_next = v_current + dv
         if  'adaptive_timestepping' in self.__params:
             v_max = v_next.max()
-            dt = self.__params['adaptive_timestepping']/v_max
+            dt = min(self.__params['adaptive_timestepping']/v_max, self.__dt)
             self.__history['dt'].append(dt)
             x_next = x_current + dt * v_next
             logging.debug(f'Adaptive timestepping triggered {dt=}')
