@@ -450,6 +450,18 @@ class ParticleSystem:
                     colors.append((strain_i/s_range,0,0,1))
                 else:
                     colors.append((0,0,0,1))
+        elif colors == 'forces':
+            colors = []
+            forces = np.array([sd.force_value() for sd in self.__springdampers])
+            forces = np.linalg.norm(forces, axis=1)
+            s_range = max(abs(forces.max()),abs(forces.min()))
+            for force_i in forces:
+                if force_i>0:
+                    colors.append((0,0,force_i/s_range,1))
+                elif force_i<0:
+                    colors.append((force_i/s_range,0,0,1))
+                else:
+                    colors.append((0,0,0,1))
         else:
             colors = 'black'
 
