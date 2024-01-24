@@ -700,8 +700,11 @@ if __name__ == "__main__":
                  [[1, 1, 0], [0, 0, 0], 1, False]
                  ]
 
-
     ps = ParticleSystem(c_matrix, init_cond, params)
     print(ps)
-    ps.plot()
+    ax = ps.plot()
     ps.plot_triangulated_surface()
+    ps.stress_self(0.5)
+    for i in range(10): 
+        ps.simulate()
+    ps.plot(ax)
