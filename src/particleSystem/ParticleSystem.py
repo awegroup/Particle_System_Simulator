@@ -45,6 +45,7 @@ class ParticleSystem:
         self.__connectivity_matrix = connectivity_matrix
 
         self.__n = len(initial_conditions)
+        self.__params = sim_param
         self.__dt = sim_param["dt"]
         self.__rtol = sim_param["rel_tol"]
         self.__atol = sim_param["abs_tol"]
@@ -54,7 +55,7 @@ class ParticleSystem:
         self.__particles = []
         self.__springdampers = []
         self.__f = np.zeros((self.__n * 3, ),dtype='float64')
-        self.__jx = np.zeros((self.__n * 3, self.__n * 3))
+        self.__jx = np.zeros((self.__n * 3, self.__n * 3), dtype='float64')
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
         self.__instantiate_particles(initial_conditions)
@@ -67,6 +68,9 @@ class ParticleSystem:
         self.__vis_damp = True
         self.__x_min1 = np.zeros(self.__n, )
         self.__x_min2 = np.zeros(self.__n, )
+        
+        # setup some recording
+        self.__history = {'dt':[]}
         return
 
     def __str__(self):
@@ -152,6 +156,31 @@ class ParticleSystem:
         return w_kin
 
     def simulate(self, f_external: npt.ArrayLike = ()):
+        """
+        Core simulate function to advance sim a timestep
+        
+        Parameters embedded in self.__params
+        ------------------------------------
+        adaptive_timestepping : float, optional
+            Enables adaptive timestepping. The default is 0, disabeling  it. 
+            Adaptive timestepping imposes a limit on the displacement per timestep.
+            To enable it, pass the maximum distance a particle can displace in a timestep.
+        
+        !!! TODO complete this with the other requisits
+        
+        Parameters
+        ----------
+        f_external : npt.ArrayLike, optional
+            DESCRIPTION. The default is ().
+
+        Returns
+        -------
+        x_next : TYPE
+            DESCRIPTION.
+        v_next : TYPE
+            DESCRIPTION.
+
+        """
         if not len(f_external):             # check if external force is passed as argument, otherwise use 0 vector
             f_external = np.zeros(self.__n * 3, )
         f = self.__one_d_force_vector() + f_external
@@ -173,16 +202,26 @@ class ParticleSystem:
         #A = sps.bsr_array(A)
         # BiCGSTAB from scipy library
         dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
-
+        
         # numerical time integration following implicit Euler scheme
         v_next = v_current + dv
-        x_next = x_current + self.__dt * v_next
+        if  'adaptive_timestepping' in self.__params:
+            v_max = v_next.max()
+            dt = self.__params['adaptive_timestepping']/v_max
+            self.__history['dt'].append(dt)
+            x_next = x_current + dt * v_next
+            logging.debug(f'Adaptive timestepping triggered {dt=}')
+        else:
+            x_next = x_current + self.__dt * v_next
 
         # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
         self.__update_x_v(x_next, v_next)
         return x_next, v_next
 
-    def kin_damp_sim(self, f_ext: npt.ArrayLike = (), q_correction: bool = False):       # kinetic damping algorithm
+    def kin_damp_sim(self, 
+                     f_ext: npt.ArrayLike = (), 
+                     q_correction: bool = False):       # kinetic damping algorithm
+        # kwargs passed to self.simulate
         if self.__vis_damp:         # Condition resetting viscous damping to 0
             for link in self.__springdampers:
                 link.c = 0
@@ -366,7 +405,11 @@ class ParticleSystem:
         x = np.reshape(x, (int(len(x)/3),3))
         v = np.reshape(v, (int(len(v)/3),3))
         return x, v
-
+    
+    @property
+    def history(self):
+        return self.__history
+    
     def plot(self, ax=None, colors = None):
         """"Plots current system configuration"""
         if ax == None:
