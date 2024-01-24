@@ -143,7 +143,7 @@ class TestParticleSystemReactionForces(unittest.TestCase):
             "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
             "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
             "max_iter": 1e5,  # [-]       maximum number of iterations]
-            "convergence_threshold": 1e-10, # Convergence value  treshold   
+            "convergence_threshold": 1e-25, # Convergence value  treshold   
             "max_sim_steps": 1e4 # [-] Max timesteps
             }
         
