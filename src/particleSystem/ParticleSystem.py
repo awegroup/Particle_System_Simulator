@@ -201,8 +201,18 @@ class ParticleSystem:
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
         #A = sps.bsr_array(A)
+        
+        # --- START Prototype new constraint approach ---
+        mask = [not p.constraint_type == 'point' for p in self.__particles]
+        #mask = [not p.fixed for p in self.__particles]
+        mask = np.outer(mask, [True,True,True]).flatten()
+        dv = np.zeros_like(b, dtype='float64')
+        A = A[mask, :][:, mask]
+        b = np.array(b)[mask]
+        
         # BiCGSTAB from scipy library
-        dv, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
+        dv_filtered, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
+        dv[mask] = dv_filtered
         
         # numerical time integration following implicit Euler scheme
         v_next = v_current + dv
