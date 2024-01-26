@@ -204,7 +204,7 @@ class ParticleSystem:
         
         # --- START Prototype new constraint approach ---
         mask = [not p.constraint_type == 'point' for p in self.__particles]
-        #mask = [not p.fixed for p in self.__particles]
+
         mask = np.outer(mask, [True,True,True]).flatten()
         dv = np.zeros_like(b, dtype='float64')
         A = A[mask, :][:, mask]
