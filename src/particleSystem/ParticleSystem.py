@@ -429,6 +429,11 @@ class ParticleSystem:
     def history(self):
         return self.__history
     
+    @property
+    def params(self):
+        return self.__params 
+
+    
     def plot(self, ax=None, colors = None):
         """"Plots current system configuration"""
         if ax == None:
