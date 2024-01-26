@@ -172,9 +172,9 @@ def mesh_airbag_square_cross(length, mesh_edge_length, width= 0, params = params
         width = length
     
     initial_conditions, connections = meshfunct(length, 
-                                                        length, 
-                                                        mesh_edge_length, 
-                                                        params)
+                                                length, 
+                                                mesh_edge_length, 
+                                                params)
     
     # We iterate over the particle and set specific constraint conditions
     # to match the symmetry of the airbag being cut into 8 pieces
