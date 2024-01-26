@@ -56,7 +56,7 @@ class Simulate_1d_Stretch(Simulate):
             converged = False
             convergence_history = []
             while not converged:
-                PS.kin_damp_sim()
+                self.PS.kin_damp_sim()
                     
                 #convergence check
                 ptp_range = MF.ps_find_strip_dimentions(self.PS, midstrip_indices)
@@ -72,8 +72,8 @@ class Simulate_1d_Stretch(Simulate):
                     crit = abs(convergence_history[-1]-convergence_history[-2]) 
                     if crit < 1e-15:
                         converged = True
-                    if not step%10:
-                        print(f'Just finished {step=}, {crit=}')
+                    if not step%50:
+                        print(f'Just finished {step=}, {crit=:.2e}')
             finished_time = time.time()
             delta_time = finished_time - starting_time
             
@@ -82,7 +82,7 @@ class Simulate_1d_Stretch(Simulate):
             
             self.history[strain] = [reaction_force, poissons_ratio]
             
-            print(f'Finished with {transverse_strain=:.2f} and force {reaction_force=:.2f}')
+            print(f'Finished with {transverse_strain=:.4f} and force {reaction_force=:.2f}')
             print(f'That took  {delta_time//60:.0f}m {delta_time%60:.2f}s')
             print('\n')
 
@@ -118,7 +118,8 @@ class Simulate_airbag(Simulate):
                        plotframes: int = 0,
                        plot_whole_bag: bool = False,
                        printframes: int = 10,
-                       simulation_function: str = 'default'
+                       simulation_function: str = 'default',
+                       both_sides: bool = True
                        ):
         """
         
@@ -133,7 +134,9 @@ class Simulate_airbag(Simulate):
             Print a mesage every nth frame. The default is 10.
         simulation_function : str, optional
             Allows enabling kinetic damping by passing 'kinetic_damping'. The default is 'default'.
-
+        both_sides : bool, optional
+            Choose whether to mirror plot around x-y plane or not
+            
         Returns
         -------
         None.
@@ -144,7 +147,6 @@ class Simulate_airbag(Simulate):
         else:
             simulation_function = self.PS.simulate
         
-        
         converged = False
         convergence_history = []
         dt = self.params['dt']
@@ -153,29 +155,51 @@ class Simulate_airbag(Simulate):
             fig = plt.figure()
         step = 0
         start_time = time.time()
-        last_time = time.time()
-
+        
+        # setup convergence plot
+        # fig_converge = plt.figure()
+        # ax1 = fig_converge.add_subplot()
+        # ax1.set_title('Convergence History')
+        # plotline =  ax1.plot(convergence_history)[0]
+        # ax1.set_yscale('log')
+        
         while not converged:
-            step+= 1
+            
+            # Logic save plots of the simulation while it is running
             if plotframes and step%plotframes==0:
+                # Live plot convergence history
+                # plotline.set_ydata(convergence_history)
+                # plotline.set_xdata(range(len(convergence_history)))
+                # ax1.set_yscale('log')
+                # fig_converge.canvas.draw()
+                # fig_converge.canvas.flush_events()
+
+                
+                fig.clear()
                 ax = fig.add_subplot(projection='3d')
                 
                 if plot_whole_bag:
-                    self.plot_whole_airbag(ax)
+                    self.plot_whole_airbag(ax, both_sides=both_sides)
                 else: 
                     self.PS.plot(ax)
-                ax.set_title(f"Simulate_airbag, t = {step*dt:.3f}")
+                x,_ = self.PS.x_v_current_3D
+                z = x[:,2]
+                zlim =  np.max([z.max(), 1e-7])/100
+                ax.set_zlim(-zlim,zlim)
+                t = np.sum(self.PS.history['dt'])
+                ax.set_title(f"Simulate_airbag, t = {t:.5f}")
                 fig.tight_layout()
                 fig.savefig(f'temp\Airbag{step}.jpg', dpi = 200, format = 'jpg')
-                fig.clear()
             
-            
+            # Force Calculation
             areas = self.PS.find_surface()
             areas = np.nan_to_num(areas)
             f = np.hstack(areas) * self.pressure
             
+            # Advance 1 timesetp
             simulation_function(f)
             
+            # Convergence checking
             d_crit_d_step = 0
             convergence_history.append(self.PS.kinetic_energy)
             if  len(convergence_history)>self.params['min_iterations']:
@@ -183,27 +207,36 @@ class Simulate_airbag(Simulate):
                 if d_crit_d_step<self.params['convergence_threshold']:
                     converged = True
                 
-            current_time = time.time()
-            delta_time = current_time - last_time
-            last_time = current_time
+
             
             if printframes and step%printframes==0:
-                print(f'Just finished step {step}, it took {delta_time//60:.0f}m {delta_time%60:.2f}s, {d_crit_d_step=:.2g}')
+                current_time = time.time()
+                t = current_time - start_time
+                if 'dt' in self.PS.history:
+                    dt = self.PS.history['dt'][-1]
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{dt=:.2g}')
+                else:
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}')
             if step > self.params['t_steps']:
                 converged = True
-        
-        
+            step+= 1
+        current_time = time.time()
         delta_time = current_time - start_time
         print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s')
-        fig_converge = plt.figure()
-        ax1 = fig_converge.add_subplot()
-        ax1.semilogy(convergence_history)
-        ax1.set_title('Convergence History')
-        print(convergence_history)
+        
+        convergence_history = np.array(convergence_history)
+        self.PS.history['convergence'] = convergence_history
+        if plotframes:
+            fig_converge = plt.figure()
+            ax1 = fig_converge.add_subplot()
+            ax1.semilogy(convergence_history[convergence_history!=0])
+            ax1.set_title('Convergence History')
+        #print(convergence_history)
         
     def plot_whole_airbag(self, 
                           ax = None,
-                          plotting_function = 'default'):
+                          plotting_function = 'default',
+                          both_sides = True):
         """
         Plotting function that rotates and mirrors the simulated section 
 
@@ -211,9 +244,11 @@ class Simulate_airbag(Simulate):
         ----------
         ax : matplotlib axis object
             Checks for preexisting axis. If none is given, one is made
-        plotting_function : TYPE, optional
+        plotting_function : Callable, optional
             Allows for surface plot of the bag by passing 'surface'. The default is 'default'.
-
+        both_sides : bool, optional
+            Choose whether to mirror plot around x-y plane or not
+            
         Returns
         -------
         ax : TYPE
@@ -240,9 +275,10 @@ class Simulate_airbag(Simulate):
             x = rotation_matrix.dot(x)
             PS.update_pos_unsafe(x)
             plotting_function(ax)
-            x[2::3] *= -1
-            PS.update_pos_unsafe(x)
-            plotting_function(ax)
+            if both_sides:
+                x[2::3] *= -1
+                PS.update_pos_unsafe(x)
+                plotting_function(ax)
         
         return ax
 
@@ -311,20 +347,20 @@ if __name__ == '__main__':
         "t_steps": 1000,  # [-]      number of simulated time steps
         "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
         "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
-        "max_iter": 1e5,  # [-]       maximum number of iterations]
+        "max_iter": 1e2,  # [-]       maximum number of iterations]
         
         # Simulation Steps
-        "steps": np.linspace(0.01,0.5, 15),
+        "steps": np.linspace(0.01,0.1, 25),
         
         # Mesh_dependent_settings
         "midstrip_width": 1,
         "boundary_margin": 0.175
         }
     
-    initial_conditions, connections = MF.mesh_square_cross(20,20,1,params)
-    initial_conditions, connections = MF.mesh_rotate_and_trim(initial_conditions, 
-                                                           connections, 
-                                                           45/2)    
+    initial_conditions, connections = MF.mesh_square_cross(30,30,1,params)
+    # initial_conditions, connections = MF.mesh_rotate_and_trim(initial_conditions, 
+    #                                                        connections, 
+    #                                                        45/2)    
     PS = ParticleSystem(connections, initial_conditions,params)
 
     Sim = Simulate_1d_Stretch(PS, params)
