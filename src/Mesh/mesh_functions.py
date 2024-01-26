@@ -385,14 +385,7 @@ def ps_find_reaction_of_boundary(ParticleSystem, boundary):
     return reaction
         
 def ps_find_mid_strip_y(ParticleSystem, width= 1):
-    center_of_mass = np.array([0,0,0],dtype ='float64')
-    for particle in ParticleSystem.particles:
-        center_of_mass+=particle.x
-    center_of_mass = center_of_mass / len(ParticleSystem.particles)
-
-    x_cleaned = np.array([particle.x[0] for particle in ParticleSystem.particles])
-    x_range = np.ptp(x_cleaned, axis = 0)
-    
+    center_of_mass = np.mean(ParticleSystem.x_v_current_3D[0], axis=0)
     for particle in ParticleSystem.particles:
         particle.update_pos_unsafe(particle.x-center_of_mass)
     
@@ -401,7 +394,6 @@ def ps_find_mid_strip_y(ParticleSystem, width= 1):
         pos = particle.x
         if abs(pos[0]) <= width/2: 
             midstrip.append(i)
-    
     return midstrip
 
 def ps_find_strip_dimentions(ParticleSystem, midstrip):
