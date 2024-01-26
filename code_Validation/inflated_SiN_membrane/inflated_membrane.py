@@ -91,6 +91,7 @@ height_bulge = np.poly1d(
      curve_fitting_parameters['205']["A1/s"],
      0])
 
+
 params = {
     # model parameters
     "k": 250,  # [N/m]   spring stiffness
@@ -113,50 +114,117 @@ params = {
     "pressure": 3e2, # [Pa] inflation pressure
     
     # Geometric parameters
+    "length": 1900 * 1e-6, # [m]
     "width": 1900 * 1e-6, # [m]
     "thickness": 305e-9 # [m]
     }
-params['edge_length']= params['width']/20
-A_cross = params['thickness'] * params['edge_length']
-params['k'] = material_properties['205']["E [GPa]"]*1e9* A_cross / params['edge_length'] 
-params['k_d'] = params['k']/np.sqrt(2) # Diagonal springs  are longer
 
+n_segments = 25
+poisson_ratio = -0.25
+diagonal_spring_ratio = 0.306228 # Coefficient determined for this mesh shape to provide poissons ratio of 0.25
+
+params['k'] = material_properties['205']["E [GPa]"]*1e9*params['thickness']*n_segments / (n_segments+1+ 2*n_segments*diagonal_spring_ratio/np.sqrt(2))
+params['k_d'] = params['k']*diagonal_spring_ratio 
+
+
+params['edge_length']= params['width']/n_segments
+A_cross = params['thickness'] * params['edge_length']
 params['adaptive_timestepping'] = params['edge_length']/100
 
-initial_conditions, connections = MF.mesh_airbag_square_cross(params['width'],
+# Initialize the particle system
+initial_conditions, connections = MF.mesh_airbag_square_cross(params['length'],
                                                               params['edge_length'],
-                                                              params,
-                                                              noncompressive = True,
+                                                              params = params  ,
+                                                              width = params['width'],
+                                                              noncompressive = False,
                                                               sparse=False)
 
 PS = ParticleSystem(connections, initial_conditions,params)
+
+# Now we do some fine-tuning on the particle system
+# Assign the correct particle masses
 PS.calculate_correct_masses(params['thickness'],material_properties['rho'])
 
-# This is a nasty hack, I know that for the used mesh (for small displacements):
-poisson_ratio = -0.5288
-strain_0 = (material_properties['205']["Sigma_0 [MPa]"]*1e6) / (material_properties['205']["E [GPa]"]*1e9) * (1 + poisson_ratio)
-PS.stress_self(1-strain_0)
+# Calculate biaxial stiffness coefficient and apply pre_stress
+params['E_biaxial'] = material_properties['205']["E [GPa]"]/(1 + poisson_ratio)
+E = material_properties['205']["E [GPa]"]*1e9
+strain_0 = (material_properties['205']["Sigma_0 [MPa]"]*1e6) /E#(params['E_biaxial']*1e9)
+PS.stress_self(1/(1+strain_0))
 
+# Checking if pre-stess is correct
+f = PS._ParticleSystem__one_d_force_vector()
+f = f.reshape((len(f)//3,3))
+# Due to stress concentrations at edges will only look at a centered segment
+# There is still a question of what the correct way of looking at stress is here
+# Is it the stress felt in the center, or the average stress in the whole edge?
+# Do we see the stress concentrations at the edges as meaningfull or not?
+f_center = f[int(n_segments/2)]
+sigma_0 = f_center[1] / (params['thickness']*params['edge_length'])
+print(f'Applied pre-stress is {sigma_0/1e6:.2f} [MPa]')
+
+
+#%% 
 # Altering boundary conditions
 for particle in PS.particles:
     x = particle.x
     if particle.fixed:
     #if x[0] == params['width']/2 or x[1] == params['width']/2:
         particle.set_fixed(True)
-    if not particle.fixed: # adding some noise to help get it startd
-        particle.x[2] += (np.random.random()-0.5) * 5e-6
+    if not particle.fixed and False: # adding some noise to help get it startd
+        particle.x[2] += (np.random.random()-0.5) * 5e-7
 
 Sim = Simulate_airbag(PS, params)
 
+#%% 
+def sweep_pressure():
+    pressures = np.linspace(0.1, 0.9, 17)
+    z_sim_hist = []
+    z_exp_hist = []
+    print('='*60)
+    print('Starting Simulation...')
+    for pressure in pressures:
+        print('='*60)
+        params['pressure'] = pressure*1e3
+        Sim = Simulate_airbag(PS, params)
+        Sim.run_simulation(plotframes=0, 
+                           plot_whole_bag = False,
+                           printframes=0,
+                           simulation_function = 'kinetic_damping',
+                           both_sides=False)
+        x, v = PS.x_v_current_3D
+        z_max = x[:,2].max()
+        z_sim_hist.append(z_max)
+        
+        z_exp = (height_bulge-pressure).roots.real
+        z_exp = z_exp[z_exp>0]
+        z_exp_hist.append(z_exp)
+        
+        print('-'*60)
+        print(f'{pressure=}[kPa]')
+        print(f'Expected height:\t{z_exp[0]*1e-6:.2e}')
+        print(f'Simulated height:\t{z_max:.2e}')
+        print(f'Error: \t\t\t\t{(z_max*1e6-z_exp[0])/z_exp[0]*100:.1f}%')
+        print('='*60)
+        print('\n')
+    z_sim_hist = np.array(z_sim_hist) * 1e6
+    plt.plot(pressures, z_sim_hist, label='Simulated')
+    plt.plot(pressures, z_exp_hist, label='Expected')
+    plt.title('Simulated verus expected behaviour')
+    plt.xlabel('pressure [kPa]')
+    plt.ylabel('Bulge Height [$\mu m$]')
+    plt.legend()
+    return [pressures, z_sim_hist, z_exp_hist]
+
+#%% 
 if __name__ == '__main__':
     debug = False
     if debug:
         Logger = logging.getLogger()
         Logger.setLevel(00) # default is Logger.setLevel(40)
     
-    Sim.run_simulation(plotframes=1, 
+    Sim.run_simulation(plotframes=0, 
                        plot_whole_bag = False,
-                       printframes=1,
+                       printframes=5,
                        simulation_function = 'kinetic_damping',
                        both_sides=False)
     PS.plot(colors='strain')
@@ -166,3 +234,11 @@ if __name__ == '__main__':
     f_int = [sd.force_value() for sd in PS.springdampers]
     f_int_mag = np.linalg.norm(f_int, axis=1)
     
+    
+    
+    z_exp = (height_bulge-0.3).roots.real
+    z_exp = z_exp[z_exp>0]
+    print(f'Expected height:\t{z_exp[0]*1e-6:.2e}')
+    print(f'Simulated height:\t{z_max:.2e}')
+    print(f'Error: \t\t\t\t{(z_max*1e6-z_exp[0])/z_exp[0]*100:.1f}%')
+
