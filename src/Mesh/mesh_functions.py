@@ -161,12 +161,16 @@ def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer 
     
     return initial_conditions, connections   
 
-def mesh_airbag_square_cross(length, mesh_edge_length, params = params, noncompressive = False, sparse = False):
+def mesh_airbag_square_cross(length, mesh_edge_length, width= 0, params = params, noncompressive = False, sparse = False):
     
     if sparse:
         meshfunct = mesh_square_cross_sparse
     else:
         meshfunct = mesh_square_cross
+        
+    if width==0:
+        width = length
+    
     initial_conditions, connections = meshfunct(length, 
                                                         length, 
                                                         mesh_edge_length, 
