@@ -172,7 +172,7 @@ def mesh_airbag_square_cross(length, mesh_edge_length, width= 0, params = params
         width = length
     
     initial_conditions, connections = meshfunct(length, 
-                                                length, 
+                                                width, 
                                                 mesh_edge_length, 
                                                 params)
     
@@ -202,7 +202,7 @@ def mesh_airbag_square_cross(length, mesh_edge_length, width= 0, params = params
         elif    (
                 (particle[0][0] == length and particle[0][1]>0)
                 or 
-                (particle[0][1] == length and particle[0][0]>0)
+                (particle[0][1] == width and particle[0][0]>0)
                 ):
             particle[3] = True
             particle.append([0,0,1])
