@@ -109,6 +109,7 @@ class Simulate_1d_Stretch(Simulate):
 
 class Simulate_airbag(Simulate):
     def __init__(self, ParticleSystem, params):
+        # TODO set self.params to self.PS.params and modfiy all references to this previous behaviour
         self.PS = ParticleSystem
         self.params = params
         self.pressure = params['pressure']            # [Pa]
@@ -146,6 +147,9 @@ class Simulate_airbag(Simulate):
             simulation_function = self.PS.kin_damp_sim
         else:
             simulation_function = self.PS.simulate
+        
+        # Update pressure value for force calculation
+        self.pressure = self.PS.params['pressure']            # [Pa]
         
         converged = False
         convergence_history = []
@@ -206,23 +210,25 @@ class Simulate_airbag(Simulate):
                 d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
                 if d_crit_d_step<self.params['convergence_threshold']:
                     converged = True
-                
 
             
             if printframes and step%printframes==0:
                 current_time = time.time()
                 t = current_time - start_time
+                x,_ = self.PS.x_v_current_3D
+                z_max = x[:,2].max()
+
                 if 'dt' in self.PS.history:
                     dt = self.PS.history['dt'][-1]
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{dt=:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.4g}, \t{dt=:.2g}')
                 else:
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.2g}')
             if step > self.params['t_steps']:
                 converged = True
             step+= 1
         current_time = time.time()
         delta_time = current_time - start_time
-        print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s')
+        print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s, {step} timesteps')
         
         convergence_history = np.array(convergence_history)
         self.PS.history['convergence'] = convergence_history
