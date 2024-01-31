@@ -654,7 +654,7 @@ class ParticleSystem:
         
         return area_vectors_redistributed
     
-    def plot_triangulated_surface(self, ax = None, arrow_length = 1, points = True):
+    def plot_triangulated_surface(self, ax = None, arrow_length = 1, plot_points = True):
         """
         plots triangulated surface for user inspection
 
@@ -675,7 +675,7 @@ class ParticleSystem:
             fig = plt.figure()
             ax = fig.add_subplot(projection='3d')
         ax.plot_trisurf(x, y, z, triangles=self.__simplices, cmap=plt.cm.Spectral)
-        if points:
+        if plot_points:
             ax.scatter(x,y,z)
         if arrow_length:
             ax.quiver(x,y,z,a_u,a_v,a_w, length = arrow_length)
