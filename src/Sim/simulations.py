@@ -158,6 +158,8 @@ class Simulate_airbag(Simulate):
         if plotframes:
             fig = plt.figure()
         step = 0
+        if hasattr(self.PS,'history'):
+            step = len(self.PS.history['dt'])
         start_time = time.time()
         
         # setup convergence plot
@@ -188,7 +190,7 @@ class Simulate_airbag(Simulate):
                     self.PS.plot(ax)
                 x,_ = self.PS.x_v_current_3D
                 z = x[:,2]
-                zlim =  np.max([z.max(), 1e-7])/100
+                zlim =  np.max([z.max(), 1e-7])
                 ax.set_zlim(-zlim,zlim)
                 t = np.sum(self.PS.history['dt'])
                 ax.set_title(f"Simulate_airbag, t = {t:.5f}")
