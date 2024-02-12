@@ -203,9 +203,54 @@ class ParticleSystem:
         #A = sps.bsr_array(A)
         
         # --- START Prototype new constraint approach ---
-        mask = [not p.constraint_type == 'point' for p in self.__particles]
-
-        mask = np.outer(mask, [True,True,True]).flatten()
+        point_mask = [not p.constraint_type == 'point' for p in self.__particles]
+        plane_mask = []
+        line_mask = []
+        for p in self.__particles:
+            if p.constraint_type == 'plane':
+                for i in range(3): line_mask.append(True)
+                constraint = p._Particle__constraint[0]
+                if constraint[0]==1:
+                    plane_mask.append(False)
+                    plane_mask.append(True)
+                    plane_mask.append(True)
+                elif constraint[1]==1:
+                    plane_mask.append(True)
+                    plane_mask.append(False)
+                    plane_mask.append(True)
+                elif constraint[2]==1:
+                    plane_mask.append(True)
+                    plane_mask.append(True)
+                    plane_mask.append(False)
+                else:
+                   for i in range(3): plane_mask.append(True)
+                   
+            elif p.constraint_type == 'line':
+                for i in range(3): plane_mask.append(True)
+                constraint = p._Particle__constraint[0]
+                if constraint[0]==1:
+                    line_mask.append(True)
+                    line_mask.append(False)
+                    line_mask.append(False)
+                elif constraint[1]==1:
+                    line_mask.append(False)
+                    line_mask.append(True)
+                    line_mask.append(False)
+                elif constraint[2]==1:
+                    line_mask.append(False)
+                    line_mask.append(False)
+                    line_mask.append(True)
+                else:
+                   for i in range(3): line_mask.append(True)
+            else:
+                for i in range(3): 
+                    plane_mask.append(True)
+                    line_mask.append(True)
+        
+        mask = np.outer(point_mask, [True,True,True]).flatten()
+        mask *= plane_mask
+        mask *= line_mask
+        
         dv = np.zeros_like(b, dtype='float64')
         A = A[mask, :][:, mask]
         b = np.array(b)[mask]
