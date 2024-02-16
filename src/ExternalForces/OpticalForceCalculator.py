@@ -24,6 +24,7 @@ class OpticalForceCalculator(Force):
     """
     def __init__(self, ParticleSystem, LaserBeam):
         self.ParticleSystem = ParticleSystem
+        self.PS = self.ParticleSystem #alias for convenience
         self.LaserBeam = LaserBeam
         
         if not hasattr(self.ParticleSystem.particles[0],'optical_type'):
@@ -203,7 +204,8 @@ class OpticalForceCalculator(Force):
         -------
         stability_matrix : npt.arraytype 
             6x6 matrix holding the stability terms of the system using 
-            notation convention of Jacobian
+            notation convention of Jacobian. 
+            Unit of first three N/m, next three N/deg
 
         """
         q, alpha = displacement_range
