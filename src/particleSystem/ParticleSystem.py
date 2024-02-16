@@ -43,6 +43,8 @@ class ParticleSystem:
             self.clean_up(connectivity_matrix, initial_conditions)
         
         self.__connectivity_matrix = connectivity_matrix
+        self.__initial_conditions = initial_conditions
+
 
         self.__n = len(initial_conditions)
         self.__params = sim_param
