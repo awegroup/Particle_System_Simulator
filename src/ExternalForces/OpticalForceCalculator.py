@@ -78,6 +78,18 @@ class OpticalForceCalculator(Force):
                                                                   intensity_vectors[mask],
                                                                   axicon_angle)
 
+            elif optical_type == ParticleOpticalPropertyType.ARBITRARY_PHC:
+                mask = self.optical_type_mask[optical_type]
+                filtered_particles = compress(PS.particles, mask)
+
+                # consider splitting this into a  "create_optical_property_list" function
+                # because now we're doing these loops every time you call force_value
+                optical_interpolators = [p.optical_interpolator for p in filtered_particles]
+
+                forces[mask] = self.calculate_arbitrary_phc_force(area_vectors[mask],
+                                                                  intensity_vectors[mask],
+                                                                  polarisation_vectors,
+                                                                  optical_interpolators)
         return forces
 
     def calculate_specular_force(self, area_vectors, intensity_vectors):
@@ -154,6 +166,73 @@ class OpticalForceCalculator(Force):
             forces[:,i]*=scaling_factor
 
         return forces
+
+    def calculate_arbitrary_phc_force(self,
+                                              area_vectors,
+                                              intensity_vectors,
+                                              polarisation_vectors,
+                                              optical_interpolators):
+        """
+        Calculates forces for particles of optical type 'axicon grating'
+
+        Parameters
+        ----------
+        area_vectors : npt.NDArray
+            An array of shape (n_particles, 3) representing the area vectors of n particles.
+        intensity_vectors : npt.NDArray
+            An array of shape (n_particles, 3) representing the intensity vectors of laser beams for
+            n particles.
+        polarisation_vectors : npt.NDArray
+            An array of shape (n_particles, 3) representing the polarisation vectors of laser beams
+            for n particles.
+
+
+        Returns
+        -------
+        forces : npt.NDArray
+            flattened array of external forces of length 3 * n_particles.
+        """
+        # Convert area vector to spherical coordinates
+        result = compute_spherical_coordinates(area_vectors, polarisation_vectors)
+        polar_angles, azimuth_angles, polarisation_angles = result
+
+        # Switch reference frame; made easier becasue we a coming from [0,0,1]
+        azimuth_angles += np.pi
+        azimuth_angles %= 2*np.pi
+
+        # Condition them for the interpolator:
+        polar_angles%=(np.pi)
+        azimuth_angles%=(2*np.pi)
+        polarisation_angles%=(np.pi/2)
+
+        incoming_ray = np.vstack((polar_angles,
+                                  azimuth_angles,
+                                  polarisation_angles)).T
+
+        # Find directions of outgoing rays
+        # Interpolator([polar_in, azimuth_in, polarization_in])->[polar_out, azimuth_out, magnitude]
+        reflected_ray = [interp(incoming_ray[i])
+                         for i, interp
+                         in enumerate(optical_interpolators)] # [polar_out, azimuth_out, magnitude]
+        polar_angles_out, azimuth_angles_out, magnitudes = np.array(reflected_ray).T
+
+        # Switch reference frame again; made easier becasue we are going to [0,0,1]
+        polar_angles_out += polar_angles
+
+        reflected_vectors = spherical_to_cartesian(polar_angles_out,
+                                                   azimuth_angles_out,
+                                                   magnitudes,
+                                                   area_vectors)
+
+        # Compute the incident power on the particle areas
+        abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
+        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ poynting vector
+        incident_power = abs_area_vectors * abs_intensity_vectors
+
+        scattered_power = reflected_vectors*incident_power[:,np.newaxis]
+
+        net_power = np.hstack((np.zeros((incident_power.shape[0],2)),incident_power[:,np.newaxis])) + scattered_power
+        forces = net_power/c
 
         return forces
 
@@ -440,23 +519,98 @@ class ParticleOpticalPropertyType(Enum):
     ----------
     SPECULAR : str
         Indicates that the particle reflects light specularly
-    ANISOTROPICSCATTERER : str
-        Indicates that the particle scatter light anisotropically
+    ARBITRARY_PHC : str
+        Indicates that the particle represents an arbitrary photonic crystal
         NOTE: scipy.interpolate.interpnd.LinearNDInterpolator has to be set on
         particle.optical_interpolator(elevation, azimuth, polarisation_angle)
+        ->(elevation, azimuth, magnitude)
     AXICONGRATING : str
         Indicates that the particle scatter light like a cone
+        NOTE: Directing angle should be set in the format of a rotation matrix
         for the relevant particles that represents [rx, ry] rotations of area
         vector on property particle.axicon_angle
     """
 
     SPECULAR = "specular"
     AXICONGRATING = "axicongrating"
-    ANISOTROPICSCATTERER = "anisotropicscatterer"
+    ARBITRARY_PHC = "ARBITRARY_PHC"
 
 vectorized_optical_type_retriever = np.vectorize(lambda  p: p.optical_type)
 
+def compute_spherical_coordinates(area_vectors: npt.NDArray,
+                                  polarisation_vectors: npt.NDArray) -> (
+                                      npt.NDArray, npt.NDArray, npt.NDArray):
+    """
+    Computes the polar angles, azimuth angles, and polarisation angles of the incoming ray
+    and its polarisation relative to the orientation of area elements represented by area vectors.
 
+    Parameters
+    ----------
+    area_vectors : npt.NDArray
+        An array of shape (n_particles, 3) representing the area vectors of n particles.
+    polarisation_vectors : npt.NDArray
+        An array of shape (n_particles, 2) representing the polarisation vectors of laser beams for
+        n particles.
+
+    Returns
+    -------
+    polar_angles : npt.NDArray
+        An array of polar angles of the area vectors relative to the z-axis.
+    azimuth_angles : npt.NDArray
+        An array of azimuth angles of the area vectors in the xy-plane.
+    polarisation_angles : npt.NDArray
+        An array of angles between the polarisation vectors and their projection onto the plane
+        orthogonal to the area vectors.
+    """
+    # Normalize the area vectors
+    norm_area_vectors = area_vectors / np.linalg.norm(area_vectors, axis=1)[:, np.newaxis]
+
+    # Compute polar angles using the dot product between area vectors and the z-axis
+    polar_angles = np.arccos(norm_area_vectors[:, 2])
+
+    # Compute azimuth angles
+    azimuth_angles = np.arctan2(norm_area_vectors[:,1], norm_area_vectors[:,0])
+
+    # Compute the polarisation angle in cartesian space:
+    polarisation_angles = np.arccos(polarisation_vectors[:,0])
+
+
+    return polar_angles, azimuth_angles, polarisation_angles
+
+
+def spherical_to_cartesian(polar_angles: npt.NDArray,
+                           azimuth_angles: npt.NDArray,
+                           magnitudes: npt.NDArray,
+                           area_vectors: npt.NDArray) -> npt.NDArray:
+    """
+    Converts spherical coordinates back to Cartesian coordinates in the global frame,
+    using the area vectors to define the local reference frames. Scales the resulting vectors by the magnitudes.
+
+    Parameters
+    ----------
+    polar_angles : npt.NDArray
+        An array of polar angles in radians.
+    azimuth_angles : npt.NDArray
+        An array of azimuth angles in radians.
+    magnitudes : npt.NDArray
+        An array of magnitudes to scale the intensity of the resulting rays.
+    area_vectors : npt.NDArray
+        An array of shape (n_particles, 3) representing the area vectors of n particles,
+        used to define the local reference frames.
+
+    Returns
+    -------
+    cartesian_vectors : npt.NDArray
+        An array of shape (n_particles, 3) representing the resulting Cartesian vectors in the global frame.
+    """
+    # Convert spherical to Cartesian coordinates in the local frame
+    x = magnitudes * np.sin(polar_angles) * np.cos(azimuth_angles)
+    y = magnitudes * np.sin(polar_angles) * np.sin(azimuth_angles)
+    z = magnitudes * np.cos(polar_angles)
+
+    cartesian_vectors= np.vstack((x,y,z)).T
+
+    return cartesian_vectors
 
 if __name__ == "__main__":
     from code_Validation.saddle_form import saddle_form
@@ -514,6 +668,7 @@ if __name__ == "__main__":
 
     #ax2 = fig.add_subplot(projection='3d')
     #LB.plot(ax2, x_range = [0,10], y_range=[0,10])
+
 
 
 
