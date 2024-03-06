@@ -52,7 +52,7 @@ params['k_d'] = params['k']*diagonal_spring_ratio
 edge_length = half_width/n_segments
 
 initial_conditions, connections = MF.mesh_airbag_square_cross(half_width,
-                                                              edge_length ,
+                                                              mesh_edge_length= edge_length,
                                                               params = params,
                                                               noncompressive = True)
 PS = ParticleSystem(connections, initial_conditions,params)
