@@ -88,7 +88,7 @@ class OpticalForceCalculator(Force):
 
                 forces[mask] = self.calculate_arbitrary_phc_force(area_vectors[mask],
                                                                   intensity_vectors[mask],
-                                                                  polarisation_vectors,
+                                                                  polarisation_vectors[mask],
                                                                   optical_interpolators)
         return forces
 
@@ -201,9 +201,10 @@ class OpticalForceCalculator(Force):
         azimuth_angles %= 2*np.pi
 
         # Condition them for the interpolator:
-        polar_angles%=(np.pi)
-        azimuth_angles%=(2*np.pi)
-        polarisation_angles%=(np.pi/2)
+        wrapped_coordinates = wrap_spherical_coordinates(polar_angles,
+                                                         azimuth_angles,
+                                                         polarisation_angles)
+        polar_angles, azimuth_angles, polarisation_angles = wrapped_coordinates
 
         incoming_ray = np.vstack((polar_angles,
                                   azimuth_angles,
@@ -221,8 +222,7 @@ class OpticalForceCalculator(Force):
 
         reflected_vectors = spherical_to_cartesian(polar_angles_out,
                                                    azimuth_angles_out,
-                                                   magnitudes,
-                                                   area_vectors)
+                                                   magnitudes)
 
         # Compute the incident power on the particle areas
         abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
@@ -555,12 +555,12 @@ def compute_spherical_coordinates(area_vectors: npt.NDArray,
     Returns
     -------
     polar_angles : npt.NDArray
-        An array of polar angles of the area vectors relative to the z-axis.
+        An array of polar angles of the area vectors relative to the z-axis [rad].
     azimuth_angles : npt.NDArray
-        An array of azimuth angles of the area vectors in the xy-plane.
+        An array of azimuth angles of the area vectors in the xy-plane [rad].
     polarisation_angles : npt.NDArray
         An array of angles between the polarisation vectors and their projection onto the plane
-        orthogonal to the area vectors.
+        orthogonal to the area vectors [rad].
     """
     # Normalize the area vectors
     norm_area_vectors = area_vectors / np.linalg.norm(area_vectors, axis=1)[:, np.newaxis]
@@ -580,8 +580,7 @@ def compute_spherical_coordinates(area_vectors: npt.NDArray,
 
 def spherical_to_cartesian(polar_angles: npt.NDArray,
                            azimuth_angles: npt.NDArray,
-                           magnitudes: npt.NDArray,
-                           area_vectors: npt.NDArray) -> npt.NDArray:
+                           magnitudes: npt.NDArray) -> npt.NDArray:
     """
     Converts spherical coordinates back to Cartesian coordinates in the global frame,
     using the area vectors to define the local reference frames. Scales the resulting vectors by the magnitudes.
@@ -611,6 +610,80 @@ def spherical_to_cartesian(polar_angles: npt.NDArray,
     cartesian_vectors= np.vstack((x,y,z)).T
 
     return cartesian_vectors
+
+def cartesian_to_sphereical(vectors:npt.NDArray) -> npt.NDArray:
+    """
+    Converts a set of vectors from cartesian to spherical coordinates
+
+    Parameters
+    ----------
+    vectors : npt.NDArray
+        An array of shape (n_particles, 3) representing the vectors to convert.
+
+    Returns
+    -------
+    polar_angles : npt.NDArray
+        An array of polar angles in radians.
+    azimuth_angles : npt.NDArray
+        An array of azimuth angles in radians.
+    magnitudes : npt.NDArray
+        An array of magnitudes of the vectors.
+    """
+    x,y,z = vectors[:,0], vectors[:,1], vectors[:,2]
+    magnitudes = np.linalg.norm(vectors, axis=1)
+    polar_angles = np.arccos(z/magnitudes)
+    azimuth_angles = np.arctan2(y,x)
+    return polar_angles, azimuth_angles, magnitudes
+
+def wrap_spherical_coordinates(theta: npt.NDArray,
+                               phi: npt.NDArray,
+                               pol: npt.NDArray):
+    """
+    wraps points in spherical coordinates to always stay within the interpolators defined range
+
+    Parameters
+    ----------
+    theta : npt.NDArray
+        polar angle
+    phi : npt.NDArray
+        azimuthal angle
+    pol : npt.NDArray
+        polarisation angle
+
+    Returns
+    -------
+    theta : npt.NDArray
+        polar angle
+    phi : npt.NDArray
+        azimuthal angle
+    pol : npt.NDArray
+        polarisation angle
+    """
+    phi[theta>np.pi] += np.pi
+    theta[theta>np.pi]= np.pi - theta[theta>np.pi]%np.pi
+
+    phi[theta<0] += np.pi
+    theta[theta<0] *=-1
+    phi %= 2*np.pi
+
+
+    x = abs(np.cos(pol))
+    y = abs(np.sin(pol))
+    pol = np.arctan(y/x)
+
+    return theta, phi, pol
+
+    # quick test
+    # !!! todo move to testing file
+    theta = np.random.random(100)*3*np.pi - np.pi
+    phi = np.random.random(100)*3*np.pi - np.pi
+    pol = np.random.random(100)*3*np.pi - np.pi
+    def test_wrap_spherical_coordinates(dat):
+        mags = np.ones(dat[0].shape)
+        t1 = spherical_to_cartesian(*wrap_spherical_coordinates(*dat)[:2], mags)
+        t2 = spherical_to_cartesian(*dat[:2], mags)
+        return (t1==t2).all()
+    test_wrap_spherical_coordinates((theta,phi,pol))
 
 if __name__ == "__main__":
     from code_Validation.saddle_form import saddle_form
