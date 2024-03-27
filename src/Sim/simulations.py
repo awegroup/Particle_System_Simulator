@@ -7,6 +7,7 @@ Created on Thu Dec 21 14:21:49 2023
 This module includes tools to aid in simulation, as well as some pre-baked simulation functions
 """
 
+
 import time
 import logging
 
@@ -27,6 +28,9 @@ class Simulate:
         pass
 
 class Simulate_1d_Stretch(Simulate):
+    """
+    Simulation class that runs a 1D stretch to asses poisson ratio of mesh
+    """
     def __init__(self, ParticleSystem, sim_params, save_plots = False):
         self.PS = ParticleSystem
         self.params = sim_params
@@ -105,6 +109,69 @@ class Simulate_1d_Stretch(Simulate):
         ax2.plot(self.steps, poissons_ratio)
         ax2.set_title("Poissons Ratio versus Strain")
 
+class Simulate_1d_Shear(Simulate):
+    """
+    Simulation class that runs a 1D shear to asses accuracy of spring value assignment
+    """
+
+    def __init__(self, ParticleSystem: ParticleSystem):
+        self.PS = ParticleSystem
+        self.params = self.PS.params
+        self.history = {}
+
+        required = ["dt", "abs_tol", "rel_tol", "convergence_threshold"]
+
+        for key in required:
+            if not key in self.params.keys():
+                raise KeyError(f"{key} missing from params")
+
+        # Prepare the particle system
+        x,_ = self.PS.x_v_current_3D
+        peak_values = np.ptp(x, axis = 0)
+
+        # Assign constraints and collect line-constrained particles to apply forces
+        # Bottom row = fixed
+        # Top row = line constrained to move only in x axis
+        self.line_mask = np.zeros(len(self.PS.particles)*3)
+        for i, particle in enumerate(self.PS.particles):
+            if particle.x[1] == 0:
+                particle.set_fixed(True)
+            if particle.x[1] == peak_values[1]:
+                particle.set_fixed(True,
+                                   constraint = [1,0,0],
+                                   constraint_type = 'line')
+                self.line_mask[i*3] = True
+        self.line_indices = np.nonzero(self.line_mask)[0]
+
+    def run_simulation(self, force=1):
+        starting_time = time.time()
+        print('Starting simulation')
+        forces = self.line_mask * force
+        self.history['step'] = 0
+        self.history['displacement'] = [0]
+        x,_ = self.PS.x_v_current
+        starting_positions = x.take(self.line_indices)
+
+        converged = False
+        while not converged:
+            self.history['step'] += 1
+            # Advance simulation
+            self.PS.kin_damp_sim(forces)
+
+
+            # Calculate and log displacement
+            x,_ = self.PS.x_v_current
+            displacement = x.take(self.line_indices) - starting_positions
+            self.history['displacement'].append(np.mean(displacement))
+            dx = np.mean(displacement)-self.history['displacement'][-2]
+            # Check convergence
+            if (self.history['step'] > self.params["min_iterations"]
+                    and dx < self.params["convergence_threshold"]):
+                converged = True
+        finished_time = time.time()
+        delta_time = finished_time - starting_time
+        print(f'Finished at step {self.history["step"]} with {np.mean(displacement)=:.4f}')
+        print(f'That took  {delta_time//60:.0f}m {delta_time%60:.2f}s')
 
 
 class Simulate_airbag(Simulate):
@@ -344,6 +411,130 @@ class SimulateTripleChainWithMass(Simulate): # Simulate chain of  links joining 
             if self.PS.step>max_steps :
                 logging.warning(f"Simulation exceeded limit with {self.PS.step=}>{max_steps=}")
                 converged = True
+
+
+
+class Simulate_Lightsail(Simulate):
+    def __init__(self, ParticleSystem, ForceCalculator, params):
+        # TODO set self.params to self.PS.params and modfiy all references to this previous behaviour
+        self.PS = ParticleSystem
+        self.params = params
+        self.FC = ForceCalculator
+
+
+    def run_simulation(self,
+                       plotframes: int = 0,
+                       printframes: int = 10,
+                       simulation_function: str = 'default',
+                       plot_forces=False):
+        """
+
+
+        Parameters
+        ----------
+        plotframes : INT, optional
+            Save every nth frame. The default is 0, indicating saving zero frame.
+        printframes : int, optional
+            Print a mesage every nth frame. The default is 10.
+        simulation_function : str, optional
+            Allows enabling kinetic damping by passing 'kinetic_damping'. The default is 'default'.
+
+
+        Returns
+        -------
+        None.
+
+        """
+        if simulation_function == 'kinetic_damping':
+            simulation_function = self.PS.kin_damp_sim
+        else:
+            simulation_function = self.PS.simulate()
+
+        converged = False
+        convergence_history = []
+        dt = self.params['dt']
+
+        if plotframes:
+            fig = plt.figure(figsize = [20,16])
+        step = 0
+        if hasattr(self.PS,'history'):
+            step = len(self.PS.history['dt'])
+        start_time = time.time()
+
+        # setup convergence plot
+        # fig_converge = plt.figure()
+        # ax1 = fig_converge.add_subplot()
+        # ax1.set_title('Convergence History')
+        # plotline =  ax1.plot(convergence_history)[0]
+        # ax1.set_yscale('log')
+
+        while not converged:
+            # Force Calculation
+            f = self.FC.force_value()
+
+            # Logic save plots of the simulation while it is running
+            if plotframes and step%plotframes==0:
+                # Live plot convergence history
+                # plotline.set_ydata(convergence_history)
+                # plotline.set_xdata(range(len(convergence_history)))
+                # ax1.set_yscale('log')
+                # fig_converge.canvas.draw()
+                # fig_converge.canvas.flush_events()
+
+
+                fig.clear()
+                ax = fig.add_subplot(projection='3d')
+                if plot_forces:
+                    self.PS.plot_forces(f,ax)
+                else:
+                    self.PS.plot(ax)
+                x,_ = self.PS.x_v_current_3D
+                z = x[:,2]
+                zlim =  np.max([z.max(), 1e-7])
+                ax.set_zlim(0,zlim)
+                t = np.sum(self.PS.history['dt'])
+                ax.set_title(f"Simulate Lightsail, t = {t:.5f}")
+                fig.tight_layout()
+                fig.savefig(f'temp\Lightsail{step}.jpg', dpi = 200, format = 'jpg')
+
+            # Advance 1 timesetp
+            simulation_function(f.ravel())
+
+            # Convergence checking
+            d_crit_d_step = 0
+            convergence_history.append(self.PS.kinetic_energy)
+            if  len(convergence_history)>self.params['min_iterations']:
+                d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
+                if d_crit_d_step<self.params['convergence_threshold']:
+                    converged = True
+
+
+            if printframes and step%printframes==0:
+                current_time = time.time()
+                t = current_time - start_time
+                x,_ = self.PS.x_v_current_3D
+                z_max = x[:,2].max()
+
+                if 'dt' in self.PS.history:
+                    dt = self.PS.history['dt'][-1]
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.4g}, \t{dt=:.2g}')
+                else:
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.2g}')
+            if step > self.params['t_steps']:
+                converged = True
+            step+= 1
+        current_time = time.time()
+        delta_time = current_time - start_time
+        print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s, {step} timesteps')
+
+        convergence_history = np.array(convergence_history)
+        self.PS.history['convergence'] = convergence_history
+        if plotframes:
+            fig_converge = plt.figure()
+            ax1 = fig_converge.add_subplot()
+            ax1.semilogy(convergence_history[convergence_history!=0])
+            ax1.set_title('Convergence History')
+        #print(convergence_history)
 
 if __name__ == '__main__':
     params = {
