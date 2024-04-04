@@ -1,5 +1,5 @@
 # LightSailSim: Lightsail Design and Simulation Tool
-
+![nicegif](images/SchmancyGauss.gif)
 This repository features a set of tools for analysing the deformation of membranes using a particle system model.  
 
 ## Installation
