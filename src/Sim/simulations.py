@@ -465,6 +465,7 @@ class Simulate_Lightsail(Simulate):
         if hasattr(self.PS,'history'):
             step = len(self.PS.history['dt'])
             min_steps += step
+
         start_time = time.time()
 
         # setup convergence plot
@@ -503,6 +504,7 @@ class Simulate_Lightsail(Simulate):
                 fig.tight_layout()
                 fig.savefig(f'temp\Lightsail{file_id}{step}.jpg', dpi = 200, format = 'jpg')
 
+
             # Advance 1 timesetp
             simulation_function(f.ravel())
 
@@ -510,6 +512,7 @@ class Simulate_Lightsail(Simulate):
             d_crit_d_step = 0
             convergence_history.append(self.PS.kinetic_energy)
             if  len(convergence_history)>min_steps:
+
                 d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
                 if d_crit_d_step<self.params['convergence_threshold']:
                     converged = True
@@ -538,6 +541,7 @@ class Simulate_Lightsail(Simulate):
             self.PS.history['convergence'] = np.hstack((self.PS.history['convergence'],convergence_history))
         else:
             self.PS.history['convergence'] = convergence_history
+
         if plotframes:
             fig_converge = plt.figure()
             ax1 = fig_converge.add_subplot()

@@ -159,7 +159,6 @@ def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer 
         elif (i+1)%(n_long) and abs(node[0][0])<abs(node[0][1]) and node[0][0]>=0: # Using modulus operator to exclude the nodes at the end of a row
             connections.append([i, i+1, params['k'], params['c']])
 
-
     return initial_conditions, connections
 
 def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params = params, noncompressive = False, sparse = False):
@@ -168,7 +167,7 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
         meshfunct = mesh_square_cross_sparse
     else:
         meshfunct = mesh_square_cross
-
+    
     if width==0:
         width = length
 
@@ -176,7 +175,7 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
                                                 width,
                                                 mesh_edge_length,
                                                 params)
-
+    
     # We iterate over the particle and set specific constraint conditions
     # to match the symmetry of the airbag being cut into 8 pieces
     for particle in initial_conditions:

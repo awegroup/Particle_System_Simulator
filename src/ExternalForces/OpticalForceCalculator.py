@@ -200,6 +200,7 @@ class OpticalForceCalculator(Force):
         # azimuth_angles += np.pi
         # azimuth_angles %= 2*np.pi
 
+
         # Condition them for the interpolator:
         wrapped_coordinates = wrap_spherical_coordinates(polar_angles,
                                                          azimuth_angles,
@@ -638,6 +639,7 @@ def cartesian_to_sphereical(vectors:npt.NDArray) -> npt.NDArray:
 def wrap_spherical_coordinates(theta: npt.NDArray,
                                phi: npt.NDArray,
                                pol: npt.NDArray=None):
+
     """
     wraps points in spherical coordinates to always stay within the interpolators defined range
 
@@ -649,6 +651,7 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
         azimuthal angle [rad]
     pol : npt.NDArray
         polarisation angle [rad]
+
 
     Returns
     -------
@@ -665,7 +668,7 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
     phi[theta<0] += np.pi
     theta[theta<0] *=-1
     phi %= 2*np.pi
-
+    
     phi[abs(phi-2*np.pi)<1e-5]=0 # wraps values that are _almost_ 2*np.pi
 
     if np.any(pol != None):

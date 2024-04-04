@@ -14,6 +14,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from src.particleSystem.Particle import Particle
 from src.particleSystem.SpringDamper import SpringDamper
 
+
 class ParticleSystem:
     def __init__(self,
                  connectivity_matrix: list,
@@ -545,6 +546,7 @@ class ParticleSystem:
 
         return ax
 
+
     def plot_forces(self, forces, ax = None, length = 5):
         if ax == None:
             fig = plt.figure()
@@ -557,7 +559,6 @@ class ParticleSystem:
                   forces[:,0], forces[:,1], forces[:,2],
                   length = length, label = 'Forces')
         return ax
-
 
     def initialize_find_surface(self, projection_plane: str = 'z'):
         """

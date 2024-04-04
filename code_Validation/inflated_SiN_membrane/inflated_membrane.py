@@ -170,8 +170,6 @@ testcases = [params_square_high_t, params_rectangle_high_t, params_square_low_t,
 
 def setup_testcase(params=params, n_segments = 20):
     diagonal_spring_ratio = 0.306228 # Coefficient determined for this mesh shape to provide poissons ratio of 0.25
-
-
     params['k'] = material_properties[params['temperature']]["E [GPa]"]*1e9*params['thickness']*n_segments / (n_segments+1+2*n_segments*diagonal_spring_ratio/np.sqrt(2))
     #params['k'] /=31.47/29
     params['k_d'] = params['k']*diagonal_spring_ratio
