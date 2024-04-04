@@ -2,7 +2,7 @@
 ParticleSystem framework
 ...
 """
-import logging 
+import logging
 
 import numpy as np
 import numpy.typing as npt
@@ -12,27 +12,26 @@ from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from src.particleSystem.Particle import Particle
-from src.particleSystem.SpringDamper import SpringDamper 
-
+from src.particleSystem.SpringDamper import SpringDamper
 
 class ParticleSystem:
-    def __init__(self, 
-                 connectivity_matrix: list, 
-                 initial_conditions: npt.ArrayLike, 
+    def __init__(self,
+                 connectivity_matrix: list,
+                 initial_conditions: npt.ArrayLike,
                  sim_param: dict,
                  clean_particles: bool = True):
         """
         Constructor for ParticleSystem object, model made up of n particles
-        
+
         Parameters
         ---------
         connectivity_matrix : list
-            2-by-m matrix, where each column contains a nodal index pair that 
+            2-by-m matrix, where each column contains a nodal index pair that
             is connectedby a spring element:
                 [ p1: Particle, p2: Particle, k: float, c: float, optional : linktype]
         initial_conditions :  npt.ArrayLike
-            Array of n arrays to instantiate particles. Each subarray must 
-            contain the params required for the particle constructor: 
+            Array of n arrays to instantiate particles. Each subarray must
+            contain the params required for the particle constructor:
                 [initial_pos, initial_vel, mass, fixed: bool, constraint, optional : constraint_type]
         param sim_param : dict
             Dictionary of other parameters required for simulation (dt, rtol, ...)
@@ -41,8 +40,10 @@ class ParticleSystem:
         """
         if clean_particles:
             self.clean_up(connectivity_matrix, initial_conditions)
-        
+
         self.__connectivity_matrix = connectivity_matrix
+        self.__initial_conditions = initial_conditions
+
 
         self.__n = len(initial_conditions)
         self.__params = sim_param
@@ -68,7 +69,7 @@ class ParticleSystem:
         self.__vis_damp = True
         self.__x_min1 = np.zeros(self.__n, )
         self.__x_min2 = np.zeros(self.__n, )
-        
+
         # setup some recording
         self.__history = {'dt':[],
                           'E_kin':[]}
@@ -109,15 +110,15 @@ class ParticleSystem:
             link[0].connections.append(SD)
             link[1].connections.append(SD)
         return
-    
+
     def clean_up(self, connectivity_matrix, initial_conditions):
         remove_list = set(range(len(initial_conditions)))
         for link in connectivity_matrix:
-            try: 
+            try:
                 remove_list.remove(link[0])
             except:
                 pass
-            try: 
+            try:
                 remove_list.remove(link[1])
             except:
                 pass
@@ -130,7 +131,7 @@ class ParticleSystem:
                     link[0]-=1
                 if link[1]>i:
                     link[1]-=1
-    
+
     def stress_self(self, factor: float = 0):
         """Set all node lengths to zero to homogenously stress mesh"""
         if factor == 0:
@@ -138,10 +139,10 @@ class ParticleSystem:
                 link.l0 = 0
         else:
             for link in self.springdampers:
-                link.l0 *= factor 
-                
+                link.l0 *= factor
+
         return
-        
+
 
     def __construct_m_matrix(self):
         matrix = np.zeros((self.__n * 3, self.__n * 3))
@@ -159,16 +160,16 @@ class ParticleSystem:
     def simulate(self, f_external: npt.ArrayLike = ()):
         """
         Core simulate function to advance sim a timestep
-        
+
         Parameters embedded in self.__params
         ------------------------------------
         adaptive_timestepping : float, optional
-            Enables adaptive timestepping. The default is 0, disabeling  it. 
+            Enables adaptive timestepping. The default is 0, disabeling  it.
             Adaptive timestepping imposes a limit on the displacement per timestep.
             To enable it, pass the maximum distance a particle can displace in a timestep.
-        
+
         !!! TODO complete this with the other requisits
-        
+
         Parameters
         ----------
         f_external : npt.ArrayLike, optional
@@ -190,10 +191,10 @@ class ParticleSystem:
         x_current = self.__pack_x_current()
 
         jx, jv = self.__system_jacobians()
-        
+
         #jx = sps.lil_array(jx)
         #jv = sps.lil_array(jv)
-        
+
         # constructing A matrix and b vector for solver
         A = self.__m_matrix - self.__dt * jv - self.__dt ** 2 * jx
         b = self.__dt * f + self.__dt ** 2 * jx.dot(v_current)
@@ -201,24 +202,72 @@ class ParticleSystem:
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
         #A = sps.bsr_array(A)
-        
+
         # --- START Prototype new constraint approach ---
-        mask = [not p.constraint_type == 'point' for p in self.__particles]
-        #mask = [not p.fixed for p in self.__particles]
-        mask = np.outer(mask, [True,True,True]).flatten()
+        point_mask = [not p.constraint_type == 'point' for p in self.__particles]
+        plane_mask = []
+        line_mask = []
+        for p in self.__particles:
+            if p.constraint_type == 'plane':
+                for i in range(3): line_mask.append(True)
+                constraint = p._Particle__constraint[0]
+                if constraint[0]==1:
+                    plane_mask.append(False)
+                    plane_mask.append(True)
+                    plane_mask.append(True)
+                elif constraint[1]==1:
+                    plane_mask.append(True)
+                    plane_mask.append(False)
+                    plane_mask.append(True)
+                elif constraint[2]==1:
+                    plane_mask.append(True)
+                    plane_mask.append(True)
+                    plane_mask.append(False)
+                else:
+                   for i in range(3): plane_mask.append(True)
+
+            elif p.constraint_type == 'line':
+                for i in range(3): plane_mask.append(True)
+                constraint = p._Particle__constraint[0]
+                if constraint[0]==1:
+                    line_mask.append(True)
+                    line_mask.append(False)
+                    line_mask.append(False)
+                elif constraint[1]==1:
+                    line_mask.append(False)
+                    line_mask.append(True)
+                    line_mask.append(False)
+                elif constraint[2]==1:
+                    line_mask.append(False)
+                    line_mask.append(False)
+                    line_mask.append(True)
+                else:
+                   for i in range(3): line_mask.append(True)
+            else:
+                for i in range(3):
+                    plane_mask.append(True)
+                    line_mask.append(True)
+
+        mask = np.outer(point_mask, [True,True,True]).flatten()
+        mask *= plane_mask
+        mask *= line_mask
+
         dv = np.zeros_like(b, dtype='float64')
         A = A[mask, :][:, mask]
         b = np.array(b)[mask]
-        
+
         # BiCGSTAB from scipy library
         dv_filtered, _ = bicgstab(A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter)
         dv[mask] = dv_filtered
-        
+
         # numerical time integration following implicit Euler scheme
         v_next = v_current + dv
         if  'adaptive_timestepping' in self.__params:
             v_max = v_next.max()
-            dt = min(self.__params['adaptive_timestepping']/v_max, self.__dt)
+            if v_max !=0:
+                dt = min(self.__params['adaptive_timestepping']/v_max, self.__dt)
+            else:
+                dt = self.__dt
             self.__history['dt'].append(dt)
             x_next = x_current + dt * v_next
             logging.debug(f'Adaptive timestepping triggered {dt=}')
@@ -228,14 +277,14 @@ class ParticleSystem:
 
         # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
         self.__update_x_v(x_next, v_next)
-        
+
         # Recording data about the timestep:
         self.__history['E_kin'].append(self.__calc_kin_energy())
 
         return x_next, v_next
 
-    def kin_damp_sim(self, 
-                     f_ext: npt.ArrayLike = (), 
+    def kin_damp_sim(self,
+                     f_ext: npt.ArrayLike = (),
                      q_correction: bool = False):       # kinetic damping algorithm
         # kwargs passed to self.simulate
         if self.__vis_damp:         # Condition resetting viscous damping to 0
@@ -303,27 +352,27 @@ class ParticleSystem:
     #         jx, jv = self.__springdampers[n].calculate_jacobian()
     #         i, j, *_ = self.__connectivity_matrix[n]
     #         if self.__particles[i].fixed:
-    #             if self.__particles[i].constraint_type == 'point': 
+    #             if self.__particles[i].constraint_type == 'point':
     #                 jxplus = np.zeros([3,3])
     #                 jvplus = jxplus
     #             else:
     #                 jxplus = self.__particles[i].constraint_projection_matrix.dot(jx)
     #                 jvplus = self.__particles[i].constraint_projection_matrix.dot(jv)
-    #         else: 
+    #         else:
     #             jxplus = jx
     #             jvplus = jv
-            
+
     #         if self.__particles[j].fixed:
-    #             if self.__particles[j].constraint_type == 'point': 
+    #             if self.__particles[j].constraint_type == 'point':
     #                 jxmin = np.zeros([3,3])
     #                 jvmin = jxmin
     #             else:
     #                 jxmin = self.__particles[j].constraint_projection_matrix.dot(jx)
     #                 jvmin = self.__particles[j].constraint_projection_matrix.dot(jv)
-    #         else: 
+    #         else:
     #             jxmin = jx
     #             jvmin = jv
-            
+
     #         self.__jx[i * 3:i * 3 + 3, i * 3:i * 3 + 3] += jxplus
     #         self.__jx[j * 3:j * 3 + 3, j * 3:j * 3 + 3] += jxplus
     #         self.__jx[i * 3:i * 3 + 3, j * 3:j * 3 + 3] -= jxmin
@@ -336,6 +385,8 @@ class ParticleSystem:
 
     #     return self.__jx, self.__jv
     def __system_jacobians(self):
+        # !!! this lookup and zeroing out takes way more time than just replacing it
+        # but replace with sparse method instead!
         self.__jx[self.__jx != 0] = 0
         self.__jv[self.__jv != 0] = 0
 
@@ -354,7 +405,7 @@ class ParticleSystem:
             self.__jv[j * 3:j * 3 + 3, i * 3:i * 3 + 3] -= jv
 
         return self.__jx, self.__jv
-    
+
     def __update_x_v(self, x_next: npt.ArrayLike, v_next: npt.ArrayLike):
         for i in range(self.__n):
             self.__particles[i].update_pos(x_next[i * 3:i * 3 + 3])
@@ -365,7 +416,7 @@ class ParticleSystem:
         self.__w_kin_min1 = self.__w_kin
         self.__w_kin = w_kin_new
         return
-    
+
     def update_pos_unsafe(self, x_new: npt.ArrayLike):
         for i, particle in enumerate(self.__particles):
             particle.update_pos_unsafe(x_new[3*i: 3*i+3])
@@ -374,7 +425,7 @@ class ParticleSystem:
         self.__x_min2 = self.__x_min1
         self.__x_min1 = self.__pack_x_current()
         return
-    
+
     def find_reaction_forces(self):
         fixlist = [p.fixed for p in self.particles]
         projections = [p.constraint_projection_matrix for p in np.array(self.particles)[fixlist]]
@@ -396,7 +447,7 @@ class ParticleSystem:
     # def stiffness_m(self):
     #     self.__system_jacobians()
     #     return self.__jx
-    
+
     @property
     def kinetic_energy(self):
         return self.__calc_kin_energy()
@@ -413,7 +464,7 @@ class ParticleSystem:
     @property
     def x_v_current(self):
         return self.__pack_x_current(), self.__pack_v_current()
-    
+
     @property
     def x_v_current_3D(self):
         x = self.__pack_x_current()
@@ -421,18 +472,22 @@ class ParticleSystem:
         x = np.reshape(x, (int(len(x)/3),3))
         v = np.reshape(v, (int(len(v)/3),3))
         return x, v
-    
+
     @property
     def history(self):
         return self.__history
-    
+
+    @property
+    def params(self):
+        return self.__params
+
+
     def plot(self, ax=None, colors = None):
         """"Plots current system configuration"""
         if ax == None:
             fig = plt.figure()
             ax = fig.add_subplot(projection='3d')
-        
-        
+
         fixlist = []
         freelist = []
         for particle in self.__particles:
@@ -440,20 +495,20 @@ class ParticleSystem:
                 fixlist.append(particle.x)
             else:
                 freelist.append(particle.x)
-                
+
         fixlist = np.array(fixlist)
         freelist = np.array(freelist)
-        
+
         if len(fixlist)>0:
             ax.scatter(fixlist[:,0],fixlist[:,1],fixlist[:,2], color = 'red', marker = 'o')
         if len(freelist)>0:
             ax.scatter(freelist[:,0],freelist[:,1],freelist[:,2], color = 'blue', marker = 'o', s =5)
-        
+
         segments = []
-        
+
         for link in self.__springdampers:
             segments.append(link.line_segment())
-        
+
 
         if colors == 'strain':
             colors = []
@@ -481,31 +536,45 @@ class ParticleSystem:
         else:
             colors = 'black'
 
-        lc = Line3DCollection(segments, colors = colors, linewidths = 0.5)  
+        lc = Line3DCollection(segments, colors = colors, linewidths = 0.5)
         ax.add_collection3d(lc)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_zlabel('z')
         ax.set_aspect('equal')
-        
+
         return ax
-    
+
+    def plot_forces(self, forces, ax = None, length = 5):
+        if ax == None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+
+        ax = self.plot(ax)
+        x,_ = self.x_v_current_3D
+
+        ax.quiver(x[:,0], x[:,1], x[:,2],
+                  forces[:,0], forces[:,1], forces[:,2],
+                  length = length, label = 'Forces')
+        return ax
+
+
     def initialize_find_surface(self, projection_plane: str = 'z'):
         """
         performs triangulation and sets up conversion matrix for surface calc
-        
-        Projects the point cloud onto specified plane and performs 
-        triangulation. Then uses shape of current triangles to create a 
-        conversion matrix for assigning the areas of each triangle onto the 
-        nodes. 
-        
+
+        Projects the point cloud onto specified plane and performs
+        triangulation. Then uses shape of current triangles to create a
+        conversion matrix for assigning the areas of each triangle onto the
+        nodes.
+
         Parameters
         ----------
         projection_plane : str
-            normal direction of plane for the mesh to be projected on for 
+            normal direction of plane for the mesh to be projected on for
             triangulation. Default: z
-        
-        
+
+
         Returns
         -------
         simplices : list
@@ -517,7 +586,7 @@ class ParticleSystem:
         # Gathering points of nodes
         points = self.__pack_x_current()
         points = points.reshape((int(len(points)/3),3))
-        
+
         # Checking projection plane
         if projection_plane == 'x':
             projection_plane = 0
@@ -527,16 +596,16 @@ class ParticleSystem:
             projection_plane = 2
         else:
             raise AttributeError("projection_plane improperly defined; Must be x, y or z.")
-        
+
         # Performing triangulation
         points_projected = points[:,:projection_plane] # Projecting onto x-y plane
         tri = Delaunay(points_projected)
-        
+
         # Finding areas of each triangle
         v1 = points[tri.simplices[:,0]]-points[tri.simplices[:,1]]
         v2 = points[tri.simplices[:,0]]-points[tri.simplices[:,2]]
-        
-        # Next we set up the matrix multiplication that will divide the areas 
+
+        # Next we set up the matrix multiplication that will divide the areas
         # of the triangles over the actual nodes
         #conversion_matrix = np.zeros((self.__n*3,len(tri.simplices)*3))
 
@@ -545,7 +614,7 @@ class ParticleSystem:
         v3_length = np.linalg.norm(v2-v1, axis=1)
 
         angle_1 = np.arccos(np.sum(v1*v2, axis = 1)/(v1_length*v2_length))
-        
+
         # Next bit is a fix for an error due to limited numerical accuracy
         inp = v2_length/v3_length * np.sin(angle_1)
         inp[inp>1] = 1
@@ -553,7 +622,7 @@ class ParticleSystem:
         angle_3 = np.pi - angle_1 - angle_2
 
         angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten()/np.pi
-        
+
         # Sparse matrix construction
         rows = []
         cols = []
@@ -565,123 +634,125 @@ class ParticleSystem:
                     cols.append(3*j+l)
                     data.append(angle_iterator[3*j+k])
         conversion_matrix = sps.csr_matrix((data, (rows, cols)), shape=(self.__n*3, len(tri.simplices)*3))
-        
+
         #for j, indices in enumerate(tri.simplices):
         #    for k, i in enumerate(indices):
         #        conversion_matrix[3*i,3*j]+= angle_iterator[3*j+k]
         #        conversion_matrix[3*i+1,3*j+1]+= angle_iterator[3*j+k]
         #        conversion_matrix[3*i+2,3*j+2]+= angle_iterator[3*j+k]
-        
-        
-        self.__simplices = tri.simplices 
+
+
+        self.__simplices = tri.simplices
         self.__surface_conversion_matrix = conversion_matrix
-        
+
         return tri.simplices, conversion_matrix
-    
+
     def find_surface(self, projection_plane: str = 'z') -> np.ndarray:
         """
         finds the surface area vector for each node in the mesh
-        
+
         Parameters
         ----------
             projection_plane: passed to self.initialize_find_surface().
-            
-        
+
+
         Returns
         -------
-        areas: npt.ArrayLike 
+        areas: npt.ArrayLike
             3D area vectors for each node
-        
+
         """
-        
+
         if not hasattr(self, '_ParticleSystem__surface_conversion_matrix'):
             logging.warning('find_surface called without prior initialization.')
             simplices, conversion_matrix = self.initialize_find_surface(projection_plane)
-            self.__simplices = simplices 
+            self.__simplices = simplices
             self.__surface_conversion_matrix = conversion_matrix
-        else: 
+        else:
             conversion_matrix = self.__surface_conversion_matrix
             simplices = self.__simplices
-        
+
         # Gathering points of nodes
         points = self.__pack_x_current()
         n = len(points)
         points = points.reshape((int(n/3),3))
-        
+
         # Finding areas of each triangle
         v1 = points[simplices[:,0]]-points[simplices[:,1]]
         v2 = points[simplices[:,0]]-points[simplices[:,2]]
-        
+
         # Calculate the area of the triangulated simplices
         area_vectors = np.cross(v1,v2)/2
-        
+
         # Convert these to correct particle area magnitudes
         # Summing vectors oposing directions cancel, which we need for finding
         # the direction but diminishes the area magnitude. We need to correct
         # for this by calculating them seperately and scaling the vector.
         simplice_area_magnitudes = np.linalg.norm(area_vectors, axis=1)
         logging.debug(f'{np.sum(simplice_area_magnitudes)=}')
-        
+
         simplice_area_magnitudes_1d = np.outer(simplice_area_magnitudes,np.ones(3)).flatten()
         particle_area_magnitudes_1d = conversion_matrix.dot(simplice_area_magnitudes_1d)
         logging.debug(f'{np.sum(particle_area_magnitudes_1d)=}')
         logging.debug(f'{np.sum(particle_area_magnitudes_1d[::3])=}')
-        
+
         # Now we transorm the simplice areas into nodal areas
         input_vector = area_vectors.flatten()
         area_vectors_1d_direction = conversion_matrix.dot(input_vector)
         area_vectors_redistributed = area_vectors_1d_direction.reshape((int(n/3),3))
-        
-        # Scaling the vectors        
+
+        # Scaling the vectors
         direction_magnitudes = np.linalg.norm(area_vectors_redistributed, axis = 1)
         logging.debug(f'{np.sum(direction_magnitudes)=}')
-        
+
         scaling_factor = particle_area_magnitudes_1d[::3] /direction_magnitudes
         logging.debug(f'{scaling_factor=}')
-        
+
         area_vectors_redistributed *= np.outer(scaling_factor,np.ones(3))
-        
+
         logging.debug(f'After scaling {np.sum(np.linalg.norm(area_vectors_redistributed, axis=1))=}')
 
-        
+
         return area_vectors_redistributed
-    
-    def plot_triangulated_surface(self, ax = None, arrow_length = 1):
+
+    def plot_triangulated_surface(self, ax = None, arrow_length = 1, plot_points = True):
         """
         plots triangulated surface for user inspection
 
         """
-        
+
         # Gathering points of nodes
         points = self.__pack_x_current()
         points = points.reshape((int(len(points)/3),3))
         x,y,z = points[:,0], points[:,1], points[:,2]
 
-        
+
         area_vectors = self.find_surface()
         a_u = area_vectors[:,0]
         a_v = area_vectors[:,1]
         a_w = area_vectors[:,2]
-        
+
         if ax == None:
             fig = plt.figure()
             ax = fig.add_subplot(projection='3d')
         ax.plot_trisurf(x, y, z, triangles=self.__simplices, cmap=plt.cm.Spectral)
-        ax.scatter(x,y,z)
-        ax.quiver(x,y,z,a_u,a_v,a_w, length = arrow_length)
+        if plot_points:
+            ax.scatter(x,y,z)
+        if arrow_length:
+            ax.quiver(x,y,z,a_u,a_v,a_w, length = arrow_length)
 
         return ax
-    
+
     def calculate_correct_masses(self, thickness, density):
         areas = np.linalg.norm(self.find_surface(), axis=1)
         masses = areas * thickness * density
         for i, particle in enumerate(self.particles):
             particle.set_m(masses[i])
-        
+
         # Recalculate mass matrix
         self.__m_matrix = self.__construct_m_matrix()
 
-        
+
 
 
 if __name__ == "__main__":
@@ -715,6 +786,6 @@ if __name__ == "__main__":
     ax = ps.plot()
     ps.plot_triangulated_surface()
     ps.stress_self(0.5)
-    for i in range(10): 
+    for i in range(10):
         ps.simulate()
     ps.plot(ax)
