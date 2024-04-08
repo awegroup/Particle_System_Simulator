@@ -511,14 +511,14 @@ class Simulate_Lightsail(Simulate):
             # Convergence checking
             d_crit_d_step = 0
             convergence_history.append(self.PS.kinetic_energy)
-            if  len(convergence_history)>min_steps:
+            if  step>min_steps:
 
                 d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
                 if d_crit_d_step<self.params['convergence_threshold']:
                     converged = True
 
 
-            if printframes and step%printframes==0:
+            if (printframes and step%printframes==0) or converged:
                 current_time = time.time()
                 t = current_time - start_time
                 x,_ = self.PS.x_v_current_3D
@@ -526,9 +526,9 @@ class Simulate_Lightsail(Simulate):
 
                 if 'dt' in self.PS.history:
                     dt = self.PS.history['dt'][-1]
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.4g}, \t{dt=:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.4g}, \t{dt=:.2g}')
                 else:
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.2g}, \t{z_max=:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.2g}')
             if step > self.params['t_steps']:
                 converged = True
             step+= 1

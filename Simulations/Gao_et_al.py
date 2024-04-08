@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 #%% Setup
+import time
 import logging
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import c
 
@@ -14,6 +16,8 @@ from src.ExternalForces.LaserBeam import LaserBeam
 from src.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
 from src.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
 
+global_start_time = time.time()
+
 # Setup parameters
 params = {
     # model parameters
@@ -22,15 +26,15 @@ params = {
     "thickness":100e-9, # [m] thickness of PhC
 
     # simulation settings
-    "dt": 0.1,  # [s]       simulation timestep
-    "t_steps": 1000,  # [-]      max number of simulated time steps
+    "dt": 0.2,  # [s]       simulation timestep
+    'adaptive_timestepping':1e-2, # [m] max distance traversed per timestep
+    "t_steps": 1e6,  # [-]      max number of simulated time steps
     "abs_tol": 1e-20,  # [m/s]     absolute error tolerance iterative solver
     "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
-    "max_iter": int(1e2),  # [-]       maximum number of iterations]
+    "max_iter": int(1e2),  # [-]       maximum number of iterations for the bicgstab solver
 
     # Simulation Steps
-    "steps": np.linspace(0.01,0.1, 25),
-    "convergence_threshold": 1e-7,
+    "convergence_threshold": 1e-10,
     "min_iterations":10,
 
     # Mesh_dependent_settings
@@ -45,16 +49,16 @@ params['E_y'] = params['E']*18/100
 
 
 # Setup mesh
-n_segments = 11 # make sure this is uneven so there are no particles on the centerline
+n_segments = 25 # make sure this is uneven so there are no particles on the centerline
 length = 1
 mesh = MF.mesh_phc_square_cross(length,
                                 mesh_edge_length=length/n_segments,
                                 params = params,
                                 noncompressive=True)
 # We have to add some particles to act as a support structure.
-stiffness_support = 1e-1 # [n/m*m] line stiffness
+stiffness_support = 1e0 # [n/m*m] line stiffness
 k_support = stiffness_support / (length / n_segments)
-l_support = length/n_segments/5
+l_support = length/n_segments/50
 
 simulate_3D = False
 
@@ -137,14 +141,18 @@ SIM = Simulate_Lightsail(PS,OFC,params)
 
 #%% Plot displaced PS with distributed and net forces
 
-plot_check = False
+plot_check = True
+deform = True
 
 if plot_check:
-    OFC.displace_particle_system([0,0,0,0,5,0])
+    OFC.displace_particle_system([0,0,0,0,0,0])
+    if deform:
+        SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping',file_id='_check_')
+
     forces = OFC.force_value()
 
     net_force = np.sum(forces,axis=0)
-    fig = plt.figure()
+    fig = plt.figure(figsize = (10,6))
 
     ax = fig.add_subplot(projection='3d')
     ax = PS.plot(ax)
@@ -163,11 +171,12 @@ if plot_check:
     ax.quiver(COM[0],COM[1],COM[2],
               net_force[0],net_force[1],net_force[2],
               length = 1, label ='Net Force', color='r')
+    fig.tight_layout()
 
-#%% Reproducing Fig. 4 from Gao et al 2022
-
-translations = np.linspace(-length,length,5+2*8*5)
-rotations = np.linspace(-10,10,5+2*38)
+#%% Getting translation and rotation data
+print('Starting rotations and translations')
+translations = np.linspace(-length,length,17)
+rotations = np.linspace(-10,10,17)
 
 translation_plot = []
 trans_plot = False
@@ -175,7 +184,7 @@ if trans_plot:
     fig0 = plt.figure(figsize = [20,16])
 
 resimulate_on_displacement = True
-
+print("Calculating translation")
 for i, t in enumerate(translations):
     OFC.displace_particle_system([t,0,0,0,0,0])
 
@@ -213,6 +222,7 @@ rot_plot = False
 if rot_plot:
     fig0 = plt.figure(figsize = [20,16])
 
+print("Calculating rotations")
 for i, r in enumerate(rotations):
     OFC.displace_particle_system([0,0,0,0,r,0])
 
@@ -246,15 +256,21 @@ for i, r in enumerate(rotations):
 
     rotation_plot.append([r, *net_force, *net_moments])
 
+
 translation_plot= np.array(translation_plot)
 rotation_plot = np.array(rotation_plot)
+header = ['displacement', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Rz']
+pd.DataFrame(translation_plot,columns=header).to_csv(f"temp/translation_{stiffness_support=}.csv", header=True, index = False)
+pd.DataFrame(rotation_plot,columns=header).to_csv(f"temp/rotation_{stiffness_support=}.csv", header=True, index = False)
 
-translation_plot.tofile(f"translation_{stiffness_support=}.csv", sep = ',')
-rotation_plot.tofile(f"rotation_{stiffness_support=}.csv", sep = ',')
+
+
+#%% Reproducing Fig. 4 from Gao et al 2022
 
 gao_et_al_figure_four = True
 if gao_et_al_figure_four:
-    fig = plt.figure()
+    fig = plt.figure(figsize=(10,6))
+
     ax1 = fig.add_subplot(221)
     ax1.plot(rotation_plot[:,0], rotation_plot[:,3]/(I_0/c))
     ax1.set_title('Tilt angle versus vertical force')
@@ -298,3 +314,6 @@ if simulate:
     PS.plot()
 
 
+# %% print time it took
+delta_time = time.time()-global_start_time
+print(f'All in all that took {delta_time//60:.0f}m {delta_time%60:.2f}s')
