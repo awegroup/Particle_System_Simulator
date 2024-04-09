@@ -334,7 +334,8 @@ class ParticleSystem:
         return np.array([particle.x for particle in self.__particles]).flatten()
 
     def __one_d_force_vector(self):
-        self.__f[self.__f != 0] = 0
+        #self.__f[self.__f != 0] = 0
+        self.__f = np.zeros(self.__f.shape, dtype=np.float64)
 
         for n in range(len(self.__springdampers)):
             f_int = self.__springdampers[n].force_value()
@@ -769,7 +770,7 @@ if __name__ == "__main__":
         "t_steps": 1000,  # [-] number of simulated time steps
         "abs_tol": 1e-50,  # [m/s] absolute error tolerance iterative solver
         "rel_tol": 1e-5,  # [-] relative error tolerance iterative solver
-        "max_iter": 1e5,  # [-] maximum number of iterations
+        "max_iter": int(1e5),  # [-] maximum number of iterations
 
         # physical parameters
         "g": 9.81           # [m/s^2] gravitational acceleration
