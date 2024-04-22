@@ -56,7 +56,7 @@ def override_constraints(PS: ParticleSystem):
     for p in PS.particles:
         if p.fixed:
             if p.constraint_type == 'plane':
-                p.set_fixed(True)
+                p.set_fixed(False)
 
 
 
@@ -71,7 +71,7 @@ params = {
     "rho":3184, # [kg/m3]
 
     # simulation settings
-    "dt": 1e-2,  # [s]       simulation timestep
+    "dt": 1e-3,  # [s]       simulation timestep
     'adaptive_timestepping':2.5e-4, # [m] max distance traversed per timestep
     "t_steps": 1e3,  # [-]      max number of simulated time steps
     "abs_tol": 1e-20,  # [m/s]     absolute error tolerance iterative solver
@@ -98,8 +98,8 @@ params['rho'] *= fill_factor
 density_ring = 2330 # [kg/m3] Support frame
 
 # Setup mesh
-n_segments = 27 # make sure this is uneven so there are no particles on the centerline
-radius = 5e-3 #[m]
+n_segments = 23 # make sure this is uneven so there are no particles on the centerline
+radius = 2.5e-3 #[m]
 length = 2*radius
 fixed_edge_width = radius/n_segments*2.1
 
@@ -155,7 +155,7 @@ shrink_factor = 1/(1+pre_strain)
 PS.stress_self(shrink_factor)
 
 #Adding dummy mass values for support:!
-width_support = 50e-6 # [m]
+width_support = 25e-6 # [m]
 m_support = width_support**2 * circumference*density_ring
 m = sum([p.m for p in PS.particles])
 n_fixed = sum([1 if p.fixed else 0 for p in PS.particles])
@@ -173,82 +173,53 @@ gao = interp.PhC_library['Gao']
 mark_4 = interp.PhC_library['Mark_4']
 mark_5 = interp.PhC_library['Mark_5']
 
-# Making a segmented sail
-#            phi_start,  phi_stop,   r_start,    r_stop
-regions1 = [[0,          np.pi/2,    0,          length],
-            [np.pi/2,    np.pi,      0,          length],
-            [np.pi,      np.pi*3/2,  0,          length],
-            [np.pi*3/2,  np.pi*2,    0,          length]]
-#            phi_start,  phi_stop,   r_start,    r_stop
-regions2 = [[-np.pi/4,   np.pi/4,    0,          length],
-            [np.pi/4,    np.pi*3/4,  0,          length],
-            [np.pi*3/4,  np.pi*5/4,  0,          length],
-            [np.pi*5/4,  np.pi*7/4,  0,          length],
-            [np.pi*7/4,  np.pi*9/4,  0,          length]]
 
-r_transition = radius/2
-#            phi_start,  phi_stop,   r_start,       r_stop
-regions3 = [[-np.pi/4,   np.pi/4,    0,             r_transition],
-            [np.pi/4,    np.pi*3/4,  0,             r_transition],
-            [np.pi*3/4,  np.pi*5/4,  0,             r_transition],
-            [np.pi*5/4,  np.pi*7/4,  0,             r_transition],
-            [np.pi*7/4,  np.pi*9/4,  0,             r_transition],
-            [-np.pi/4,   np.pi/4,    r_transition,  length],
-            [np.pi/4,    np.pi*3/4,  r_transition,  length],
-            [np.pi*3/4,  np.pi*5/4,  r_transition,  length],
-            [np.pi*5/4,  np.pi*7/4,  r_transition,  length],
-            [np.pi*7/4,  np.pi*9/4,  r_transition,  length]]
+inner_phc = mark_4
+inner_offset = 0
+outer_phc = mark_5
+outer_offset = np.pi
 
-#            phi_start,  phi_stop,   r_start,       r_stop
-regions4 = [[0,          np.pi/2,    0,             r_transition],
-            [np.pi/2,    np.pi,      0,             r_transition],
-            [np.pi,      np.pi*3/2,  0,             r_transition],
-            [np.pi*3/2,  np.pi*2,    0,             r_transition],
-            [0,          np.pi/2,    r_transition,  length],
-            [np.pi/2,    np.pi,      r_transition,  length],
-            [np.pi,      np.pi*3/2,  r_transition,  length],
-            [np.pi*3/2,  np.pi*2,    r_transition,  length]]
+twist_compensation = -15/180*np.pi
 
+r_transition = radius*4/5
+#            phi_start,  phi_stop,   r_start,       r_stop,         midline,    PhC,        offset
+regions1 = [[-np.pi/4,   np.pi/4,    0,             r_transition,   0,          inner_phc, inner_offset],
+            [np.pi/4,    np.pi*3/4,  0,             r_transition,   np.pi*2/4,  inner_phc, inner_offset],
+            [np.pi*3/4,  np.pi*4/4,  0,             r_transition,   np.pi*4/4,  inner_phc, inner_offset],
+            [-np.pi*3/4, -np.pi*1/4, 0,             r_transition,   -np.pi*2/4, inner_phc, inner_offset],
+            [-np.pi*4/4, -np.pi*3/4, 0,             r_transition,   -np.pi*4/4, inner_phc, inner_offset],
+            [-np.pi/4,   np.pi/4,    r_transition,  length,         0,          outer_phc, outer_offset-twist_compensation],
+            [np.pi/4,    np.pi*3/4,  r_transition,  length,         np.pi*2/4,  outer_phc, outer_offset+twist_compensation],
+            [np.pi*3/4,  np.pi*4/4,  r_transition,  length,         np.pi*4/4,  outer_phc, outer_offset-twist_compensation],
+            [-np.pi*3/4, -np.pi*1/4, r_transition,  length,         -np.pi*2/4, outer_phc, outer_offset+twist_compensation],
+            [-np.pi*4/4, -np.pi*3/4, r_transition,  length,         -np.pi*4/4, outer_phc, outer_offset-twist_compensation]]
 
-#for i in range(5):
-#    regions3[i].append(ParticleOpticalPropertyType.SPECULAR)
+offset = np.pi*0
+#            phi_start,  phi_stop,   r_start,    r_stop, midline
+regions0 = [[0,          np.pi/2,    0,          length, np.pi*1/4, inner_phc, offset],
+            [np.pi/2,    np.pi,      0,          length, np.pi*3/4, inner_phc, offset],
+            [np.pi,      np.pi*3/2,  0,          length, np.pi*5/4, inner_phc, offset],
+            [np.pi*3/2,  np.pi*2,    0,          length, np.pi*7/4, inner_phc, offset]]
 
-regions = regions4
-#offset = +np.pi*6/4 # works well for Mark3 and Mark2
+regions = regions1
+for reg in regions:
+    reg[5] = interp.create_interpolator(reg[5], reg[4]+reg[6])
 
-offset = np.pi # works well for Mark5
-#fname = dummy
-fname = mark_5
 templog = []
-for i,reg in enumerate(regions):
-    if i>3:
-        fname = mark_4
-        offset = -np.pi*0/4#-1/180*np.pi # works well for Mark4
-
-    midline = reg[0]+(reg[1]-reg[0])/2
-    rotation = midline + offset
-    rotation%=2*np.pi
-
-    if len(reg)==4:
-        PhC = interp.create_interpolator(fname,-rotation)
-        reg.append(ParticleOpticalPropertyType.ARBITRARY_PHC)
-        reg.append(PhC)
-        reg.append(-rotation)
-
 for p in PS.particles:
     x,y,z = p.x
-    phi = np.arctan2(y,x)%(2*np.pi)
+    phi = np.arctan2(y,x)
     r = np.linalg.norm(p.x)
+    templog.append([phi])
     for reg in regions:
-        if r > reg[2] and r <= reg[3] and phi > reg[0] and  phi <= reg[1]:
-            if reg[4]== ParticleOpticalPropertyType.SPECULAR:
+        if r > reg[2] and r <= reg[3] and phi <= reg[1] and phi > reg[0]:
+            if reg[5]== ParticleOpticalPropertyType.SPECULAR:
                 p.optical_type = ParticleOpticalPropertyType.SPECULAR
             else:
                 p.optical_type = ParticleOpticalPropertyType.ARBITRARY_PHC
                 p.optical_interpolator = reg[5]
-                templog.append([phi,r,*p.x, reg[6]])
 
-templog = np.array(templog)
+templog= np.array(templog)
 # init optical system
 P = 400/2# [W] 400 divided by two because superposition of two orthogonally polarised beams
 P /= 4 # There is a factor four difference in the force that I cannot manage to explain. soz.
@@ -257,7 +228,7 @@ P /= 4 # There is a factor four difference in the force that I cannot manage to 
 # net force should be P_original/c*2*2 (*2 for reflection, *2 for the second laser)
 mu_x = 0
 mu_y = 0
-sigma = radius*3
+sigma = radius*6
 I_0 = 2*P / (np.pi* sigma**2)
 
 
@@ -315,17 +286,25 @@ if stability_check:
     print(J)
 
 force_plot = True
-force_check = True
+force_check = False
 if force_check:
     for i in range(5):
         f = OFC.force_value()
         PS.simulate(f.ravel())
 
+    f = OFC.force_value()
+    f_lift = m_new*9.80665
+    f_z = np.sum(f, axis=0)[-1]
+    print(f'req. {f_lift}, avail. {f_z}')
+
     disp_list = [[0,0,0,0,0,0],
                 [0,0,0,3,0,0],
                 [0,0,0,0,3,0],
-                [0.1*radius,0,0,0,0,0],
-                [0,0.1*radius,0,0,0,0]]
+                [0,0,0,3,3,0],
+                #[0.1*radius,0,0,0,0,0],
+                #[0,0.1*radius,0,0,0,0],
+                [0,0,0,0,0,3],
+                [0,0,0,0,0,-3]]
     for disp in disp_list:
         OFC.displace_particle_system(disp,suppress_warnings=True)
         f = OFC.force_value()
@@ -335,17 +314,19 @@ if force_check:
         if force_plot:
             PS.plot_forces(f, length = 1/f_abs)
         f_res,m_res =OFC.calculate_restoring_forces()
-        print(offset, disp, f_res, m_res)
+        print(disp, f_res, m_res)
         OFC.un_displace_particle_system()
 
 
-trajectory = False
-params["t_steps"]= 1e3
+trajectory = True
+params["t_steps"]= 1e4
 PS.COM_offset = np.array([0,0,-width_support/2])
 if trajectory:
     override_constraints(PS)
-    SIM.simulate_trajectory(plotframes=1,
-                            printframes=5,
+    SIM.simulate_trajectory(plotframes=1e5,
+                            printframes=10,
                             plot_forces=True,
-                            file_id = '_multipattern_4_and_5_')
+                            file_id = '_check_5_',
+                            deform = True,
+                            rotate = False)
 
