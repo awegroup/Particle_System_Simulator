@@ -45,7 +45,7 @@ def mesh_square(length, width, mesh_edge_length, params = params):
         if (i+1)%(n_long): # Using modulus operator to exclude the nodes at the end of a row
             connections.append([i, i+1, params['k'], params['c']])
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 
 def mesh_square_cross(length, width, mesh_edge_length, params = params):
@@ -76,7 +76,7 @@ def mesh_square_cross(length, width, mesh_edge_length, params = params):
         if (i+1)%(n_long): # Using modulus operator to exclude the nodes at the end of a row
             connections.append([i, i+1, params['k'], params['c']])
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 def mesh_square_cross_sparse(length, width, mesh_edge_length, params = params):
     n_wide = int(width/ mesh_edge_length + 1)
@@ -114,7 +114,7 @@ def mesh_square_cross_sparse(length, width, mesh_edge_length, params = params):
         if (i+1)%(n_long): # Using modulus operator to exclude the nodes at the end of a row
             connections.append([i, i+1, params['k'], params['c']])
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer = False):
     n_long = int(length/ mesh_edge_length + 1)
@@ -159,7 +159,7 @@ def mesh_square_concentric(length, mesh_edge_length, params = params ,fix_outer 
         elif (i+1)%(n_long) and abs(node[0][0])<abs(node[0][1]) and node[0][0]>=0: # Using modulus operator to exclude the nodes at the end of a row
             connections.append([i, i+1, params['k'], params['c']])
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params = params, noncompressive = False, sparse = False):
 
@@ -167,7 +167,7 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
         meshfunct = mesh_square_cross_sparse
     else:
         meshfunct = mesh_square_cross
-    
+
     if width==0:
         width = length
 
@@ -175,7 +175,7 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
                                                 width,
                                                 mesh_edge_length,
                                                 params)
-    
+
     # We iterate over the particle and set specific constraint conditions
     # to match the symmetry of the airbag being cut into 8 pieces
     for particle in initial_conditions:
@@ -224,7 +224,7 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
         for link in connections:
             link.append(linktype)
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 def mesh_phc_square_cross(length, width= 0, mesh_edge_length = 1/10, params = params, noncompressive = False, sparse = False):
     required = ['E_x', 'E_y', "G", "thickness"]
@@ -262,12 +262,15 @@ def mesh_phc_square_cross(length, width= 0, mesh_edge_length = 1/10, params = pa
     for xyz in xyz_coordinates:
         initial_conditions.append([xyz, np.zeros(3), params['m_segment'], False])
 
+    neglect_diagonals = False
+    if params["G"] == 0:
+        neglect_diagonals = True
     connections = []
     #We know that all the nodes are connected to those of the next row, which is grid_length+1 units further
     for i, node in enumerate(initial_conditions[:-n_long]): # adding connextions in y-axis
         connections.append([i, i+n_long, params['k_y'], params['c']])
 
-        if (i+1)%(n_long): #cross connections
+        if (i+1)%(n_long) and not neglect_diagonals: #cross connections
             connections.append([i, i+n_long+1, params['k_d'], params['c']])
             connections.append([i+1, i+n_long, params['k_d'], params['c']])
 
@@ -328,8 +331,9 @@ def mesh_circle_square_cross(radius, mesh_edge_length, params = params, fix_oute
                     # print(f'dumping link {j} for being connected to {i}: {link}')
                     dumplist.append(j)
 
-    dumplist.sort()
-    dumplist = list(set(dumplist))[::-1]
+
+    dumplist = list(set(dumplist))
+    dumplist = sorted(dumplist)[::-1]
     # print(f'dumplist length: {len(set(dumplist))}\n{dumplist[::-1]}')
     # print(f'connections length: {len(connections)}')
     for i in dumplist:
@@ -393,7 +397,7 @@ def mesh_rotate_and_trim(initial_conditions, connections, angle):
     for i in dumplist[::-1]:
         del connections[i]
 
-    return initial_conditions, connections
+    return connections, initial_conditions
 
 
 def ps_fix_opposite_boundaries_x(ParticleSystem, margin = 0.075):
@@ -477,7 +481,11 @@ if __name__ == '__main__':
         "t_steps": 1000,  # [-]      number of simulated time steps
         "abs_tol": 1e-50,  # [m/s]     absolute error tolerance iterative solver
         "rel_tol": 1e-5,  # [-]       relative error tolerance iterative solver
-        "max_iter": 1e5,  # [-]       maximum number of iterations]
+        "max_iter": 1e5,  # [-]       maximum number of iterations
+        "E_x":100e9, # [Pa]
+        "E_y":100e9, # [Pa]
+        "G":0, # [Pa]
+        "thickness":100e-9 # [m]
         }
 
     # !!! Don't forget to add new meshing functions to this list!
@@ -486,7 +494,8 @@ if __name__ == '__main__':
                          mesh_square_cross_sparse,
                          mesh_airbag_square_cross,
                          mesh_square_concentric,
-                         mesh_circle_square_cross]
+                         mesh_circle_square_cross,
+                         mesh_round_phc_square_cross]
     inputs = [16,8,1, params]
     nplots = len(meshing_functions) + 1
 
