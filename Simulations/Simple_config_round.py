@@ -22,6 +22,7 @@ from src.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
 from src.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
 
 
+
 class OpticalForceCalculatorCross():
     def __init__(self, PS, LB1, LB2):
         self.ParticleSystem = ParticleSystem
@@ -71,7 +72,7 @@ params = {
     "rho":3184, # [kg/m3]
 
     # simulation settings
-    "dt": 1e-3,  # [s]       simulation timestep
+    "dt": 3e-3,  # [s]       simulation timestep
     'adaptive_timestepping':2.5e-4, # [m] max distance traversed per timestep
     "t_steps": 1e3,  # [-]      max number of simulated time steps
     "abs_tol": 1e-20,  # [m/s]     absolute error tolerance iterative solver
@@ -98,7 +99,7 @@ params['rho'] *= fill_factor
 density_ring = 2330 # [kg/m3] Support frame
 
 # Setup mesh
-n_segments = 23 # make sure this is uneven so there are no particles on the centerline
+n_segments = 20 # make sure this is uneven so there are no particles on the centerline
 radius = 2.5e-3 #[m]
 length = 2*radius
 fixed_edge_width = radius/n_segments*2.1
@@ -174,14 +175,14 @@ mark_4 = interp.PhC_library['Mark_4']
 mark_5 = interp.PhC_library['Mark_5']
 
 
-inner_phc = mark_4
-inner_offset = 0
-outer_phc = mark_5
-outer_offset = np.pi
+inner_phc = mark_5
+inner_offset = np.pi
+outer_phc = mark_4
+outer_offset = 0
 
-twist_compensation = -15/180*np.pi
+twist_compensation = -15/180*np.pi*0
 
-r_transition = radius*4/5
+r_transition = radius*3/5
 #            phi_start,  phi_stop,   r_start,       r_stop,         midline,    PhC,        offset
 regions1 = [[-np.pi/4,   np.pi/4,    0,             r_transition,   0,          inner_phc, inner_offset],
             [np.pi/4,    np.pi*3/4,  0,             r_transition,   np.pi*2/4,  inner_phc, inner_offset],
@@ -212,7 +213,7 @@ for p in PS.particles:
     r = np.linalg.norm(p.x)
     templog.append([phi])
     for reg in regions:
-        if r > reg[2] and r <= reg[3] and phi <= reg[1] and phi > reg[0]:
+        if r >= reg[2] and r <= reg[3] and phi <= reg[1] and phi >= reg[0]:
             if reg[5]== ParticleOpticalPropertyType.SPECULAR:
                 p.optical_type = ParticleOpticalPropertyType.SPECULAR
             else:
@@ -228,7 +229,7 @@ P /= 4 # There is a factor four difference in the force that I cannot manage to 
 # net force should be P_original/c*2*2 (*2 for reflection, *2 for the second laser)
 mu_x = 0
 mu_y = 0
-sigma = radius*6
+sigma = radius*2
 I_0 = 2*P / (np.pi* sigma**2)
 
 
@@ -286,7 +287,7 @@ if stability_check:
     print(J)
 
 force_plot = True
-force_check = False
+force_check = True
 if force_check:
     for i in range(5):
         f = OFC.force_value()
@@ -300,11 +301,10 @@ if force_check:
     disp_list = [[0,0,0,0,0,0],
                 [0,0,0,3,0,0],
                 [0,0,0,0,3,0],
-                [0,0,0,3,3,0],
-                #[0.1*radius,0,0,0,0,0],
-                #[0,0.1*radius,0,0,0,0],
-                [0,0,0,0,0,3],
-                [0,0,0,0,0,-3]]
+                [0.1*radius,0,0,0,0,0],
+                [0,0.1*radius,0,0,0,0]]#,
+                # [0,0,0,0,0,3],
+                # [0,0,0,0,0,-3]]
     for disp in disp_list:
         OFC.displace_particle_system(disp,suppress_warnings=True)
         f = OFC.force_value()
@@ -312,13 +312,13 @@ if force_check:
         f_net = np.sum(f, axis=0)
         f_abs = np.linalg.norm(f_net)
         if force_plot:
-            PS.plot_forces(f, length = 1/f_abs)
+            PS.plot_forces(f, length = 1/f_abs/2)
         f_res,m_res =OFC.calculate_restoring_forces()
         print(disp, f_res, m_res)
         OFC.un_displace_particle_system()
 
 
-trajectory = True
+trajectory = False
 params["t_steps"]= 1e4
 PS.COM_offset = np.array([0,0,-width_support/2])
 if trajectory:
@@ -327,6 +327,6 @@ if trajectory:
                             printframes=10,
                             plot_forces=True,
                             file_id = '_check_5_',
-                            deform = True,
+                            deform = False,
                             rotate = False)
 
