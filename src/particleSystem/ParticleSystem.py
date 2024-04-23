@@ -20,7 +20,8 @@ class ParticleSystem:
                  connectivity_matrix: list,
                  initial_conditions: npt.ArrayLike,
                  sim_param: dict,
-                 clean_particles: bool = True):
+                 clean_particles: bool = True,
+                 init_surface = True):
         """
         Constructor for ParticleSystem object, model made up of n particles
 
@@ -38,6 +39,10 @@ class ParticleSystem:
             Dictionary of other parameters required for simulation (dt, rtol, ...)
         clean_particles : bool
             Sets wether or not to delete particles without connections on init
+        init_surface : bool
+            Sets wether or not to initialise the surface finding. If disabled will perform it auto
+            matically on surface calculation. But it gives the opertunity to initialise it manually
+            with some extra parameters.
         """
         if clean_particles:
             self.clean_up(connectivity_matrix, initial_conditions)
@@ -71,9 +76,15 @@ class ParticleSystem:
         self.__x_min1 = np.zeros(self.__n, )
         self.__x_min2 = np.zeros(self.__n, )
 
+        # Variables that aid simulations
+        self.COM_offset = np.zeros(3)
+
         # setup some recording
         self.__history = {'dt':[],
                           'E_kin':[]}
+
+        if init_surface:
+            self.initialize_find_surface()
         return
 
     def __str__(self):
@@ -186,6 +197,7 @@ class ParticleSystem:
         """
         if not len(f_external):             # check if external force is passed as argument, otherwise use 0 vector
             f_external = np.zeros(self.__n * 3, )
+
         f = self.__one_d_force_vector() + f_external
 
         v_current = self.__pack_v_current()
@@ -754,7 +766,26 @@ class ParticleSystem:
         # Recalculate mass matrix
         self.__m_matrix = self.__construct_m_matrix()
 
+    def calculate_center_of_mass(self):
+        locations, _ = self.x_v_current_3D
+        masses = np.array([p.m for p in self.particles])
+        total_mass = np.sum(masses)
+        weighing_vector = masses/total_mass
+        for i in range(3):
+            locations[:,i]*=weighing_vector
+        COM = np.sum(locations,axis=0)
+        return COM+self.COM_offset
 
+    def calculate_mass_moment_of_inertia(self):
+        masses = np.array([p.m for p in self.particles])
+        COM = self.calculate_center_of_mass()
+        locations, _ = self.x_v_current_3D
+        locations -= COM
+        r2 = np.vstack([locations[:, 1]**2 + locations[:, 2]**2,
+                        locations[:, 0]**2 + locations[:, 2]**2,
+                        locations[:, 0]**2 + locations[:, 1]**2])
+
+        return r2.T*masses[:,np.newaxis]
 
 
 if __name__ == "__main__":
