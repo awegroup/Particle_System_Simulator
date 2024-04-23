@@ -55,7 +55,12 @@ class LaserBeam(SystemObject):
         print(f"intensity_profile: {self.intensity_profile}")
         return ""
 
-    def plot(self, ax = None, x_range = (-1,1), y_range = (-1,1), number_of_points = 121):
+    def plot(self, ax = None,
+             x_range = (-1,1),
+             y_range = (-1,1),
+             z_scale = 1,
+             number_of_points = 121,
+             arrow_length = 0.1):
         """
         plotting function to display shape and polarisation of LaserBeam object.
 
@@ -67,8 +72,12 @@ class LaserBeam(SystemObject):
             range in x over which to pol function. The default is [-1,1].
         y_range : list[float,float], optional
             range in y over which to pol function. The default is [-1,1].
+        z_scale : float, optional
+            amount by which to scale the z axis up or down.
         number_of_points : int, optional
             number of points to plot over. The default is 100.
+        arrow_length : float, optional
+            sets the length of the polarisation arrows
 
         Returns
         -------
@@ -84,18 +93,19 @@ class LaserBeam(SystemObject):
         intensity_profile = self.intensity_profile(x_range,y_range)
         polarization_map = self.polarization_map(x_range,y_range)
 
+
         if ax is None:
             fig = plt.figure()
             ax = fig.add_subplot(projection = '3d')
 
-        ax.plot_surface(x_range,y_range,intensity_profile, label = "Intensity")
-        ax.quiver(x_range,
-                  y_range,
-                  intensity_profile,
-                  polarization_map[0],
-                  polarization_map[1],
-                  0,
-                  length = 0.1,
+        ax.plot_surface(x_range,y_range,intensity_profile/z_scale, label = "Intensity",alpha = 0.5, color = 'lightblue')
+        ax.quiver(x_range.ravel(),
+                  y_range.ravel(),
+                  (intensity_profile/z_scale).ravel(),
+                  polarization_map.T[0],
+                  polarization_map.T[1],
+                  np.zeros(polarization_map.T[0].shape),
+                  length = arrow_length,
                   color='r',
                   label = "Polarization")
 
