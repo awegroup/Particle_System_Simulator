@@ -352,7 +352,69 @@ def mesh_circle_square_cross(radius, mesh_edge_length, params = params, fix_oute
             if not freeit:
                 initial_conditions[i][3]= True
 
-    return initial_conditions, connections
+    return connections, initial_conditions
+
+def mesh_round_phc_square_cross(radius, mesh_edge_length=1/10, params=None, noncompressive=False, sparse=False, fix_outer=True, edge=0):
+    if params is None:
+        params = {}
+    required = ['E_x', 'E_y', "G", "thickness", "m_segment", "c"]
+    for key in required:
+        if key not in params.keys():
+            raise KeyError(f"{key} missing from params")
+
+    # Calculating grid dimensions
+    n_wide = int(2*radius / mesh_edge_length) + 1
+    n_long = n_wide
+    y_length = radius/n_long
+    x_length = y_length
+
+    mesh = np.meshgrid(np.linspace(-radius, radius, n_long), np.linspace(-radius, radius, n_wide))
+
+    xy_coordinates = np.column_stack([mesh[0].flatten(), mesh[1].flatten()])
+    mask = xy_coordinates[:,0]**2 + xy_coordinates[:,1]**2 <= radius**2
+    filtered_xy_coordinates = xy_coordinates[mask]
+
+    xyz_coordinates = np.column_stack((filtered_xy_coordinates, np.zeros(len(filtered_xy_coordinates))))
+    initial_conditions = [[xyz, np.zeros(3), params['m_segment'], False] for xyz in xyz_coordinates]
+
+    # Calculate k's from the given stifnesses
+    # First calculate the diagnonal, it is required in the calculation of the orthogonal ones
+    params["k_d"] = params["G"] * params["thickness"] * x_length / (y_length*n_wide/np.sqrt(2))
+    params["k_x"] = params["E_x"] * params["thickness"]
+    params["k_y"] = params["E_y"] * params["thickness"]
+    # Now we have to reduce the influence of the orthogonal springs in order to account for the
+    # contribution of the diagonal ones
+    params["k_x"]*= params["k_x"]*n_long / (params["k_x"]*n_long + params["k_d"]*np.sqrt(2)*n_long)
+    params["k_y"]*= params["k_y"]*n_wide / (params["k_y"]*n_wide + params["k_d"]*np.sqrt(2)*n_wide)
+
+
+
+    connections = []
+    for i, cond_i in enumerate(initial_conditions):
+        for j, cond_j in enumerate(initial_conditions[i+1:], start=i+1):
+            distance = np.linalg.norm(cond_i[0][:2] - cond_j[0][:2])/1.01
+            if distance <= mesh_edge_length:  # Direct neighbors
+                k_value = params['k_x'] if cond_i[0][1] == cond_j[0][1] else params['k_y']
+                connection = [i, j, k_value, params['c']]
+                if noncompressive:
+                    connection.append(SpringDamperType.NONCOMPRESSIVE)
+                connections.append(connection)
+            elif distance <= mesh_edge_length * np.sqrt(2) and params["G"]!=0:  # Diagonal connections only if G != 0
+                connection = [i, j, params['k_d'], params['c']]
+                if noncompressive:
+                    connection.append(SpringDamperType.NONCOMPRESSIVE)
+                connections.append(connection)
+
+     # Optionally fix the outer nodes
+    if fix_outer:
+        if edge == 0:
+            edge = mesh_edge_length * 1.5
+        for i, cond in enumerate(initial_conditions):
+            if np.linalg.norm(cond[0][:2]) >= radius - edge:
+                initial_conditions[i][3] = True  # Mark as fixed/non-movable
+
+    return connections, initial_conditions
+
 
 def mesh_rotate_and_trim(initial_conditions, connections, angle):
     """
