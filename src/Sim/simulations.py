@@ -432,8 +432,6 @@ class Simulate_Lightsail(Simulate):
                        plot_forces=False,
                        file_id = ''):
         """
-
-
         Parameters
         ----------
         plotframes : INT, optional
@@ -457,6 +455,13 @@ class Simulate_Lightsail(Simulate):
         converged = False
         convergence_history = []
         dt = self.params['dt']
+        # We also want to log the forces, but logging all of them would be wastefull of memory
+        buffer_size = 30
+        if not 'forces_ringbuffer' in self.PS.history.keys():
+            self.PS.history['forces_ringbuffer'] = [np.array([0]) for i in range(buffer_size)]
+
+        if not 'net_force' in self.PS.history.keys():
+            self.PS.history['net_force'] = []
 
         if plotframes:
             fig = plt.figure(figsize = [20,16])
@@ -478,6 +483,9 @@ class Simulate_Lightsail(Simulate):
         while not converged:
             # Force Calculation
             f = self.FC.force_value()
+            net_force = np.sum(f, axis = 0)
+            net_force = np.linalg.norm(net_force)
+            self.PS.history['net_force'].append(net_force)
 
             # Logic save plots of the simulation while it is running
             if plotframes and step%plotframes==0:
@@ -510,7 +518,9 @@ class Simulate_Lightsail(Simulate):
 
             # Convergence checking
             d_crit_d_step = 0
-            convergence_history.append(self.PS.kinetic_energy)
+            #convergence_history.append(self.PS.kinetic_energy)
+            convergence_history.append(net_force)
+            self.PS.history['forces_ringbuffer'][step%buffer_size] = f
             if  step>min_steps:
 
                 d_crit_d_step = abs(convergence_history[-1]-convergence_history[-2])
@@ -526,9 +536,9 @@ class Simulate_Lightsail(Simulate):
 
                 if 'dt' in self.PS.history:
                     dt = self.PS.history['dt'][-1]
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.4g}, \t{dt=:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.4g}, \t{net_force=:.2g}, \t{dt=:.2g}')
                 else:
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.2g}')
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \tcrit={d_crit_d_step:.3g}, \t{z_max=:.2g}, \t{net_force=:.2g}')
             if step > self.params['t_steps']:
                 converged = True
             step+= 1
@@ -548,6 +558,207 @@ class Simulate_Lightsail(Simulate):
             ax1.semilogy(convergence_history[convergence_history!=0])
             ax1.set_title('Convergence History')
         #print(convergence_history)
+
+    def simulate_trajectory(self,
+                       plotframes: int = 0,
+                       printframes: int = 10,
+                       plot_forces= False,
+                       file_id = '',
+                       deform = True,
+                       rotate = True):
+        """
+        Parameters
+        ----------
+        plotframes : INT, optional
+            Save every nth frame. The default is 0, indicating saving zero frame.
+        printframes : int, optional
+            Print a mesage every nth frame. The default is 10.
+        plot_foces : bool
+            Plot force vectors on the particle system?
+        file_id : string
+            allows to ad an ID infix in the filename to help distinguish plots from this sim run
+        deform : bool
+            allows to run a trajectory simulation without deformation
+        rotate : bool
+            allows to run a trajectory simulation without rotation about z
+
+        Returns
+        -------
+        None.
+
+        """
+        buffer_size = 30
+        if not 'forces_ringbuffer' in self.PS.history.keys():
+            self.PS.history['forces_ringbuffer'] = [np.array([0]) for i in range(buffer_size)]
+
+        keys = ['net_force', 'position', 'velocity', 'net_moment', 'lin_accel', 'rot_accel', 'abs_force']
+        for key in keys:
+            if not key in self.PS.history.keys():
+                self.PS.history[key] = []
+
+        if plotframes:
+            fig = plt.figure(figsize = [16,12])
+
+        mass = sum([p.m for p in self.PS.particles])
+        mmoi = np.sum(self.PS.calculate_mass_moment_of_inertia(),axis=0)
+        attitude = np.zeros(3)
+        length_scale = np.ptp(self.PS.x_v_current_3D[0][:,0])
+        f_max = np.max(self.FC.force_value())
+        arrow_length = length_scale/f_max/4
+        zlim = length_scale/5
+
+        convergence_history = []
+        dt = self.params['dt']
+        v = np.zeros([6])
+
+        step = 0
+        min_steps = self.params['min_iterations']
+        if hasattr(self.PS,'history'):
+            step = len(self.PS.history['dt'])
+            min_steps += step
+
+        start_time = time.time()
+        done = False
+        while not done:
+            if step > self.params['t_steps']-2:
+                done = True
+            # Force and Moment Calculation
+            f, moments  = self.FC.calculate_restoring_forces()
+
+            net_moment = np.sum(moments, axis=0)
+            net_force = np.sum(f,axis=0)
+            abs_force = np.linalg.norm(net_force)
+
+            lin_acceleration = f/mass
+            ang_acceleration= np.rad2deg(moments/mmoi)
+
+            self.PS.history['abs_force'].append(abs_force)
+            self.PS.history['net_force'].append(net_force)
+            self.PS.history['net_moment'].append(net_moment)
+            self.PS.history['lin_accel'].append(lin_acceleration)
+            self.PS.history['rot_accel'].append(ang_acceleration)
+
+            if 'dt' in self.PS.history:
+                if len(self.PS.history['dt'])>0:
+                    dt = self.PS.history['dt'][-1]
+            COM = self.PS.calculate_center_of_mass()
+            v += *(lin_acceleration*dt), *(ang_acceleration*dt)
+            dx = v*dt
+            if not rotate:
+                dx[-1]=0
+            attitude += dx[3:]
+
+            self.PS.history['position'].append(dx.copy())
+            self.PS.history['velocity'].append(v)
+            dx[2]=0 # Keep z at zero to keep it in frame
+
+            self.FC.displace_particle_system(dx,
+                                             suppress_warnings=True)
+
+            f = self.FC.force_value()
+            # Logic save plots of the simulation while it is running
+            if plotframes and step%plotframes==0:
+                fig.clear()
+                ax = fig.add_subplot(projection='3d')
+                if plot_forces:
+                    self.PS.plot_forces(f,ax, length = arrow_length)
+                    #ax.scatter([0,0],[0,0],[0,zlim])
+                else:
+                    self.PS.plot(ax)
+                x,_ = self.PS.x_v_current_3D
+                z = x[:,2]
+
+                zlim = np.max([z.max(),zlim])
+                ax.set_zlim(0,zlim)
+                plot_scale=1.5
+                ax.set_xlim([-length_scale*plot_scale,length_scale*plot_scale])
+                ax.set_ylim([-length_scale*plot_scale,length_scale*plot_scale])
+                t = np.sum(self.PS.history['dt'])
+                ax.set_title(f"Simulate Lightsail, t = {t:.5f}")
+                ax.set_aspect('equal')
+
+                fig.tight_layout()
+                fig.savefig(f'temp\Lightsail{file_id}{step}.jpg', dpi = 300, format = 'jpg')
+                fig.canvas.draw()
+
+            # Advance 1 timestep
+            if deform:
+                self.PS.simulate(f.ravel())
+
+            convergence_history.append(net_force)
+            self.PS.history['forces_ringbuffer'][step%buffer_size] = f
+
+
+
+            if (printframes and step%printframes==0) or done:
+                current_time = time.time()
+                t = current_time - start_time
+                x,_ = self.PS.x_v_current_3D
+                z_max = x[:,2].max()
+                location = np.round((COM/length_scale)[:2],3)
+                angles = np.round(attitude,2)
+                if 'dt' in self.PS.history:
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{z_max=:.4g}, \t{net_force=:.2g}, \t{dt=:.2g}, \t {location=} [D], \t {angles=} [deg]'.replace('array',''))
+                else:
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{z_max=:.2g}, \t{net_force=:.2g}, \t {location=} [D], \t {angles=} [deg]'.replace('array',''))
+            # break if it flies off
+            if (abs(COM[0])>= length_scale*2 or abs(COM[1])>= abs(length_scale*2)
+                or abs(attitude[0])>=10 or abs(attitude[1])>=10):
+                print(f'Simulation halted: Lightsail broke perimiter {COM=}')
+                done = True
+
+            step+= 1
+
+        current_time = time.time()
+        delta_time = current_time - start_time
+        print(f'Converged in {delta_time//60:.0f}m {delta_time%60:.2f}s, {step} timesteps')
+
+        convergence_history = np.array(convergence_history)
+        if 'convergence' in self.PS.history.keys():
+            self.PS.history['convergence'] = np.hstack((self.PS.history['convergence'],convergence_history))
+        else:
+            self.PS.history['convergence'] = convergence_history
+
+        if plotframes:
+            time_history = np.cumsum(self.PS.history['dt'], axis=0)
+            position_history = np.cumsum(self.PS.history['position'], axis=0)
+            velocity_history = np.array(self.PS.history['velocity'])
+            r = np.sqrt(position_history[:,0]**2 + position_history[:,1]**2)
+
+            fig_movement = plt.figure(figsize=[10,8])
+            ax1 = fig_movement.add_subplot(221)
+            ax1.plot(position_history[:,0]/length_scale,position_history[:,1]/length_scale)
+            ax1.set_title('X-Y trajectory')
+            ax1.set_xlabel('X [D]')
+            ax1.set_ylabel('Y [D]')
+            ax1.set_xlim([-3,3])
+            ax1.set_ylim([-3,3])
+            ax1.grid()
+
+            ax2 = fig_movement.add_subplot(222)
+            ax2.plot(position_history[:,0]/length_scale,position_history[:,4])
+            ax2.set_title('X-$\\theta_{y}$ trajectory')
+            ax2.set_xlabel('X [D]')
+            ax2.set_ylabel('$\\theta_{y}$ [rad]')
+            ax2.grid()
+
+            ax3 = fig_movement.add_subplot(223)
+            ax3.plot(r, position_history[:,2])
+            ax3.set_title('r-z trajectory')
+            ax3.set_xlabel('r [D]')
+            ax3.set_ylabel('z [D]')
+            ax2.grid()
+
+            ax4 = fig_movement.add_subplot(224)
+            ax4.plot(time_history,position_history[:,0]/length_scale)
+            ax4.set_title('x location')
+            ax4.set_xlabel('t [t]')
+            ax4.set_ylabel('x [D]')
+            ax2.grid()
+
+            fig_movement.tight_layout()
+
+
 
 if __name__ == '__main__':
     params = {
@@ -572,11 +783,11 @@ if __name__ == '__main__':
         "boundary_margin": 0.175
         }
 
-    initial_conditions, connections = MF.mesh_square_cross(30,30,1,params)
+    mesh = MF.mesh_square_cross(30,30,1,params)
     # initial_conditions, connections = MF.mesh_rotate_and_trim(initial_conditions,
     #                                                        connections,
     #                                                        45/2)
-    PS = ParticleSystem(connections, initial_conditions,params)
+    PS = ParticleSystem(*mesh,params)
 
     Sim = Simulate_1d_Stretch(PS, params)
     Sim.run_simulation()
