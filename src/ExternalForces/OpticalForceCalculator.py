@@ -53,6 +53,7 @@ class OpticalForceCalculator(Force):
         PS = self.ParticleSystem
         LB = self.LaserBeam
         area_vectors = PS.find_surface()
+        area_vectors = np.nan_to_num(area_vectors)
         locations, _ = PS.x_v_current_3D
         forces = np.zeros(locations.shape)
 
@@ -80,17 +81,19 @@ class OpticalForceCalculator(Force):
 
             elif optical_type == ParticleOpticalPropertyType.ARBITRARY_PHC:
                 mask = self.optical_type_mask[optical_type]
-                filtered_particles = compress(PS.particles, mask)
-
-                # consider splitting this into a  "create_optical_property_list" function
-                # because now we're doing these loops every time you call force_value
-                optical_interpolators = [p.optical_interpolator for p in filtered_particles]
+                if not hasattr(self, 'optical_interpolators'):
+                    self.create_phc_map(mask)
 
                 forces[mask] = self.calculate_arbitrary_phc_force(area_vectors[mask],
                                                                   intensity_vectors[mask],
                                                                   polarisation_vectors[mask],
-                                                                  optical_interpolators)
+                                                                  self.optical_interpolators)
         return forces
+
+    def create_phc_map(self, mask):
+        filtered_particles = compress(self.PS.particles, mask)
+        self.optical_interpolators = [p.optical_interpolator for p in filtered_particles]
+
 
     def calculate_specular_force(self, area_vectors, intensity_vectors):
         """
@@ -342,7 +345,7 @@ class OpticalForceCalculator(Force):
         k_rot = (reaction[1] - original[1])/displacement
         return k_trans, k_rot
 
-    def displace_particle_system(self, displacement : list):
+    def displace_particle_system(self, displacement : list, suppress_warnings = False):
         """
         displaces the associated particle system with the prescribed amount
         around the center of mass.
@@ -354,24 +357,30 @@ class OpticalForceCalculator(Force):
             perform the stability test. First three values represent lateral
             displacement in meters. Next three values represent
             tilt angle around the centre of mass in degrees.
+        suppress_warnings : bool
+            allows for repeated displacement of PS without warnings.
         """
         PS = self.ParticleSystem
         if len(displacement) != 6:
             raise AttributeError("Expected list of 6 arguments representing "
-                                 "x,y,z,rx,ry,rz, got list of length {} instead".format(len(displacement)))
+                                 f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead")
+
         if hasattr(self.ParticleSystem, 'current_displacement'): #
             if (type(self.ParticleSystem.current_displacement) != type(None)
-                and not
+                and not suppress_warnings and not
                 np.all(self.ParticleSystem.current_displacement == -np.array(displacement))):
-                # I want to allow this behavior, but also inform user that by doing it this way they're breaking stuff
-                logging.warning(f"Particle system is already displaced: {self.ParticleSystem.current_displacement=}; displace_particle_system called multiple times without un-displacing. un-displacing is now broken.")
+                # I want to allow this behavior,
+                #but also inform user that by doing it this way they're breaking stuff
+                logging.warning(f"Particle system is already displaced: \
+{self.ParticleSystem.current_displacement=}; displace_particle_system called multiple times without\
+ un-displacing. un-displacing is now broken.")
         self.ParticleSystem.current_displacement = displacement
 
         qx, qy, qz, *_ = displacement
         locations, _ = PS.x_v_current_3D
 
         # To apply rotations around COM we need to place it at the origin first
-        COM = self.find_center_of_mass()
+        COM =PS.calculate_center_of_mass()
         self.translate_mesh(locations, -COM)
 
         new_locations = self.rotate_mesh(locations, displacement[3:])
@@ -405,7 +414,7 @@ class OpticalForceCalculator(Force):
         locations, _ = PS.x_v_current_3D
 
         # To apply rotations around COM we need to place it at the origin first
-        COM = self.find_center_of_mass()
+        COM =PS.calculate_center_of_mass()
         self.translate_mesh(locations, -COM)
 
         # Extra syntax is to apply rotations in reverse order
@@ -421,25 +430,25 @@ class OpticalForceCalculator(Force):
 
         self.ParticleSystem.current_displacement = None
 
-    def find_center_of_mass(self):
-        """
-        finds coordinates of center of mass of current mesh
+    # def find_center_of_mass(self):
+    #     """
+    #     finds coordinates of center of mass of current mesh
 
-        Returns
-        -------
-        COM : npt.ArrayLike
-            [x,y,z] vector of center of mass
+    #     Returns
+    #     -------
+    #     COM : npt.ArrayLike
+    #         [x,y,z] vector of center of mass
 
-        """
-        PS = self.ParticleSystem
-        locations, _ = PS.x_v_current_3D
-        masses = np.array([p.m for p in PS.particles])
-        total_mass = np.sum(masses)
-        weighing_vector = masses/total_mass
-        for i in range(3):
-            locations[:,i]*=weighing_vector
-        COM = np.sum(locations,axis=0)
-        return COM
+    #     """
+    #     PS = self.ParticleSystem
+    #     locations, _ = PS.x_v_current_3D
+    #     masses = np.array([p.m for p in PS.particles])
+    #     total_mass = np.sum(masses)
+    #     weighing_vector = masses/total_mass
+    #     for i in range(3):
+    #         locations[:,i]*=weighing_vector
+    #     COM = np.sum(locations,axis=0)
+    #     return COM
 
     def translate_mesh(self, mesh, translation):
         """
@@ -504,7 +513,7 @@ class OpticalForceCalculator(Force):
         forces = self.force_value()
         net_force = np.sum(forces,axis=0)
 
-        COM = self.find_center_of_mass()
+        COM =PS.calculate_center_of_mass()
         locations, _ = PS.x_v_current_3D
         moment_arms = self.translate_mesh(locations, -COM) # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
         moments = np.cross(moment_arms, forces)
@@ -668,7 +677,7 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
     phi[theta<0] += np.pi
     theta[theta<0] *=-1
     phi %= 2*np.pi
-    
+
     phi[abs(phi-2*np.pi)<1e-5]=0 # wraps values that are _almost_ 2*np.pi
 
     if np.any(pol != None):
