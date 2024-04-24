@@ -652,8 +652,7 @@ class Simulate_Lightsail(Simulate):
             self.PS.history['velocity'].append(v)
             dx[2]=0 # Keep z at zero to keep it in frame
 
-            self.FC.displace_particle_system(dx,
-                                             suppress_warnings=True)
+            self.PS.displace(dx, suppress_warnings=True)
 
             f = self.FC.force_value()
             # Logic save plots of the simulation while it is running
@@ -670,7 +669,7 @@ class Simulate_Lightsail(Simulate):
 
                 zlim = np.max([z.max(),zlim])
                 ax.set_zlim(0,zlim)
-                plot_scale=1.5
+                plot_scale=1
                 ax.set_xlim([-length_scale*plot_scale,length_scale*plot_scale])
                 ax.set_ylim([-length_scale*plot_scale,length_scale*plot_scale])
                 t = np.sum(self.PS.history['dt'])
@@ -684,6 +683,8 @@ class Simulate_Lightsail(Simulate):
             # Advance 1 timestep
             if deform:
                 self.PS.simulate(f.ravel())
+            else:
+                self.PS.history['dt'].append(dt)
 
             convergence_history.append(net_force)
             self.PS.history['forces_ringbuffer'][step%buffer_size] = f

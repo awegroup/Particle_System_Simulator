@@ -9,6 +9,7 @@ import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
 import scipy.sparse as sps
 from scipy.spatial import Delaunay
+from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from src.particleSystem.Particle import Particle
@@ -787,7 +788,135 @@ class ParticleSystem:
 
         return r2.T*masses[:,np.newaxis]
 
+    def displace(self, displacement : list, suppress_warnings = False):
+        """
+        displaces the associated particle system with the prescribed amount
+        around the center of mass.
 
+        Arguments
+        ----------
+        displacement_range : list
+            list of length 6 representing the displacement magnitudes to
+            perform the stability test. First three values represent lateral
+            displacement in meters. Next three values represent
+            tilt angle around the centre of mass in degrees.
+        suppress_warnings : bool
+            allows for repeated displacement of PS without warnings.
+        """
+        if len(displacement) != 6:
+            raise AttributeError("Expected list of 6 arguments representing "
+                                 f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead")
+
+        if hasattr(self, 'current_displacement'): #
+            if (type(self.current_displacement) != type(None)
+                and not suppress_warnings and not
+                np.all(self.current_displacement == -np.array(displacement))):
+                # I want to allow this behavior,
+                #but also inform user that by doing it this way they're breaking stuff
+                logging.warning(f"Particle system is already displaced: \
+{self.current_displacement=}; displace called multiple times without\
+ un-displacing. un-displacing is now broken.")
+        self.current_displacement = displacement
+
+        qx, qy, qz, *_ = displacement
+        locations, _ = self.x_v_current_3D
+
+        # To apply rotations around COM we need to place it at the origin first
+        COM =self.calculate_center_of_mass()
+        self.translate_mesh(locations, -COM)
+
+        new_locations = self.rotate_mesh(locations, displacement[3:])
+        new_locations = self.translate_mesh(new_locations, displacement[:3])
+
+        # Put back system in original location
+        new_locations = self.translate_mesh(new_locations, COM)
+
+        for i, location in enumerate(new_locations):
+            # 'Unsafe' update needed to move fixed particles as well
+            self.particles[i].update_pos_unsafe(location)
+
+
+    def un_displace(self):
+        """
+        Reverses current mesh displacement of the associated particle system.
+
+        """
+
+        if not hasattr(self, 'current_displacement'):
+            raise AttributeError("Particle System is not currently displaced")
+
+        elif type(self.current_displacement) == type(None):
+            raise AttributeError("Particle System is not currently displaced")
+
+        current_displacement = self.current_displacement
+        reverse_displacement = -np.array(current_displacement)
+
+        qx, qy, qz, *_ = reverse_displacement
+        locations, _ = self.x_v_current_3D
+
+        # To apply rotations around COM we need to place it at the origin first
+        COM =self.calculate_center_of_mass()
+        self.translate_mesh(locations, -COM)
+
+        # Extra syntax is to apply rotations in reverse order
+        new_locations = self.rotate_mesh(locations, reverse_displacement[3:][::-1], order = 'xyz')
+        new_locations = self.translate_mesh(new_locations, reverse_displacement[:3])
+
+        # Put back system in original location
+        new_locations = self.translate_mesh(new_locations, COM)
+
+        for i, location in enumerate(new_locations):
+            # 'Unsafe' update needed to move fixed particles as well
+            self.particles[i].update_pos_unsafe(location)
+
+        self.current_displacement = None
+
+    def translate_mesh(self, mesh, translation):
+        """
+        Translates mesh locations
+
+        Parameters
+        ----------
+        mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+        translation : list
+            x, y, z axis translations
+
+        Returns
+        -------
+        mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+
+        """
+        qx, qy, qz = translation
+
+        mesh[:,0] += qx
+        mesh[:,1] += qy
+        mesh[:,2] += qz
+
+        return mesh
+
+    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list, order = 'zyx'):
+        """
+        Rotates mesh locations
+
+        Parameters
+        ----------
+        mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+        rotations : list
+            x, y, z axis rotation angles in degrees
+
+        Returns
+        -------
+        rotated_mesh : npt.ArrayLike
+            shape n x 3 array holding x, y, z locations of each point
+
+        """
+        gamma, beta, alpha = rotations
+        rotation_matrix = Rotation.from_euler(order, [alpha, beta, gamma], degrees=True)
+        rotated_mesh = np.matmul(rotation_matrix.as_matrix(), mesh.T).T
+        return rotated_mesh
 if __name__ == "__main__":
     params = {
         # model parameters

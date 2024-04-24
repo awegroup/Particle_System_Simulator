@@ -337,165 +337,14 @@ class OpticalForceCalculator(Force):
                                  f"instead got {displacement_vector}")
 
         original = self.calculate_restoring_forces()
-        self.displace_particle_system(displacement_vector)
+        self.PS.displace(displacement_vector)
         reaction = self.calculate_restoring_forces()
-        self.un_displace_particle_system()
+        self.PS.un_displace()
 
         k_trans = (reaction[0] - original[0])/displacement
         k_rot = (reaction[1] - original[1])/displacement
         return k_trans, k_rot
 
-    def displace_particle_system(self, displacement : list, suppress_warnings = False):
-        """
-        displaces the associated particle system with the prescribed amount
-        around the center of mass.
-
-        Arguments
-        ----------
-        displacement_range : list
-            list of length 6 representing the displacement magnitudes to
-            perform the stability test. First three values represent lateral
-            displacement in meters. Next three values represent
-            tilt angle around the centre of mass in degrees.
-        suppress_warnings : bool
-            allows for repeated displacement of PS without warnings.
-        """
-        PS = self.ParticleSystem
-        if len(displacement) != 6:
-            raise AttributeError("Expected list of 6 arguments representing "
-                                 f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead")
-
-        if hasattr(self.ParticleSystem, 'current_displacement'): #
-            if (type(self.ParticleSystem.current_displacement) != type(None)
-                and not suppress_warnings and not
-                np.all(self.ParticleSystem.current_displacement == -np.array(displacement))):
-                # I want to allow this behavior,
-                #but also inform user that by doing it this way they're breaking stuff
-                logging.warning(f"Particle system is already displaced: \
-{self.ParticleSystem.current_displacement=}; displace_particle_system called multiple times without\
- un-displacing. un-displacing is now broken.")
-        self.ParticleSystem.current_displacement = displacement
-
-        qx, qy, qz, *_ = displacement
-        locations, _ = PS.x_v_current_3D
-
-        # To apply rotations around COM we need to place it at the origin first
-        COM =PS.calculate_center_of_mass()
-        self.translate_mesh(locations, -COM)
-
-        new_locations = self.rotate_mesh(locations, displacement[3:])
-        new_locations = self.translate_mesh(new_locations, displacement[:3])
-
-        # Put back system in original location
-        new_locations = self.translate_mesh(new_locations, COM)
-
-        for i, location in enumerate(new_locations):
-            # 'Unsafe' update needed to move fixed particles as well
-            self.ParticleSystem.particles[i].update_pos_unsafe(location)
-
-
-    def un_displace_particle_system(self):
-        """
-        Reverses current mesh displacement of the associated particle system.
-
-        """
-
-        if not hasattr(self.ParticleSystem, 'current_displacement'):
-            raise AttributeError("Particle System is not currently displaced")
-
-        elif type(self.ParticleSystem.current_displacement) == type(None):
-            raise AttributeError("Particle System is not currently displaced")
-
-        PS = self.ParticleSystem
-        current_displacement = self.ParticleSystem.current_displacement
-        reverse_displacement = -np.array(current_displacement)
-
-        qx, qy, qz, *_ = reverse_displacement
-        locations, _ = PS.x_v_current_3D
-
-        # To apply rotations around COM we need to place it at the origin first
-        COM =PS.calculate_center_of_mass()
-        self.translate_mesh(locations, -COM)
-
-        # Extra syntax is to apply rotations in reverse order
-        new_locations = self.rotate_mesh(locations, reverse_displacement[3:][::-1], order = 'xyz')
-        new_locations = self.translate_mesh(new_locations, reverse_displacement[:3])
-
-        # Put back system in original location
-        new_locations = self.translate_mesh(new_locations, COM)
-
-        for i, location in enumerate(new_locations):
-            # 'Unsafe' update needed to move fixed particles as well
-            self.ParticleSystem.particles[i].update_pos_unsafe(location)
-
-        self.ParticleSystem.current_displacement = None
-
-    # def find_center_of_mass(self):
-    #     """
-    #     finds coordinates of center of mass of current mesh
-
-    #     Returns
-    #     -------
-    #     COM : npt.ArrayLike
-    #         [x,y,z] vector of center of mass
-
-    #     """
-    #     PS = self.ParticleSystem
-    #     locations, _ = PS.x_v_current_3D
-    #     masses = np.array([p.m for p in PS.particles])
-    #     total_mass = np.sum(masses)
-    #     weighing_vector = masses/total_mass
-    #     for i in range(3):
-    #         locations[:,i]*=weighing_vector
-    #     COM = np.sum(locations,axis=0)
-    #     return COM
-
-    def translate_mesh(self, mesh, translation):
-        """
-        Translates mesh locations
-
-        Parameters
-        ----------
-        mesh : npt.ArrayLike
-            shape n x 3 array holding x, y, z locations of each point
-        translation : list
-            x, y, z axis translations
-
-        Returns
-        -------
-        mesh : npt.ArrayLike
-            shape n x 3 array holding x, y, z locations of each point
-
-        """
-        qx, qy, qz = translation
-
-        mesh[:,0] += qx
-        mesh[:,1] += qy
-        mesh[:,2] += qz
-
-        return mesh
-
-    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list, order = 'zyx'):
-        """
-        Rotates mesh locations
-
-        Parameters
-        ----------
-        mesh : npt.ArrayLike
-            shape n x 3 array holding x, y, z locations of each point
-        rotations : list
-            x, y, z axis rotation angles in degrees
-
-        Returns
-        -------
-        rotated_mesh : npt.ArrayLike
-            shape n x 3 array holding x, y, z locations of each point
-
-        """
-        gamma, beta, alpha = rotations
-        rotation_matrix = Rotation.from_euler(order, [alpha, beta, gamma], degrees=True)
-        rotated_mesh = np.matmul(rotation_matrix.as_matrix(), mesh.T).T
-        return rotated_mesh
 
     def calculate_restoring_forces(self):
         """
@@ -515,7 +364,7 @@ class OpticalForceCalculator(Force):
 
         COM =PS.calculate_center_of_mass()
         locations, _ = PS.x_v_current_3D
-        moment_arms = self.translate_mesh(locations, -COM) # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
+        moment_arms = PS.translate_mesh(locations, -COM) # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
         moments = np.cross(moment_arms, forces)
         net_moments = np.sum(moments,axis=0)
 
