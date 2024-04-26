@@ -346,9 +346,15 @@ class OpticalForceCalculator(Force):
         return k_trans, k_rot
 
 
-    def calculate_restoring_forces(self):
+    def calculate_restoring_forces(self, forces : npt.ArrayLike= None):
         """
         calculates net forces and moments around the center of mass
+
+        Parameters
+        ----------
+        forces : npt.Arraylike
+            Allows inputting the forces directly, but is calculated automatically when ommitted.
+            Prevents doing double work in simulation context.
 
         Returns
         -------
@@ -359,7 +365,8 @@ class OpticalForceCalculator(Force):
 
         """
         PS = self.ParticleSystem
-        forces = self.force_value()
+        if type(forces) == type(None):
+            forces = self.force_value()
         net_force = np.sum(forces,axis=0)
 
         COM =PS.calculate_center_of_mass()
