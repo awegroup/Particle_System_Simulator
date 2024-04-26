@@ -57,7 +57,7 @@ class ParticleSystem:
         self.__dt = sim_param["dt"]
         self.__rtol = sim_param["rel_tol"]
         self.__atol = sim_param["abs_tol"]
-        self.__maxiter = sim_param["max_iter"]
+        self.__maxiter = int(sim_param["max_iter"])
 
         # allocate memory
         self.__particles = []
