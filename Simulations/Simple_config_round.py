@@ -35,9 +35,9 @@ class OpticalForceCalculatorCross():
     def force_value(self):
         return self.OFC1.force_value()+self.OFC2.force_value()
 
-    def calculate_restoring_forces(self):
-        f1, m1 = self.OFC1.calculate_restoring_forces()
-        f2, m2 = self.OFC2.calculate_restoring_forces()
+    def calculate_restoring_forces(self, **kwargs):
+        f1, m1 = self.OFC1.calculate_restoring_forces(**kwargs)
+        f2, m2 = self.OFC2.calculate_restoring_forces(**kwargs)
         return f1+f2, m1+m2
 
     def calculate_stability_coefficients(self, **kwargs):
@@ -68,7 +68,7 @@ params = {
     "rho":3184, # [kg/m3]
 
     # simulation settings
-    "dt": 3e-3,  # [s]       simulation timestep
+    "dt": 1e-3,  # [s]       simulation timestep
     'adaptive_timestepping':2.5e-4, # [m] max distance traversed per timestep
     "t_steps": 1e3,  # [-]      max number of simulated time steps
     "abs_tol": 1e-20,  # [m/s]     absolute error tolerance iterative solver
@@ -106,13 +106,6 @@ mesh = MF.mesh_round_phc_square_cross(radius,
                                       noncompressive=True,
                                       fix_outer=True,
                                       edge = fixed_edge_width)
-# params['k'] = params['k_y']
-
-# mesh = MF.mesh_circle_square_cross(radius,
-#                                    mesh_edge_length=length/n_segments,
-#                                    params=params,
-#                                    fix_outer = True,
-#                                    edge = fixed_edge_width)
 
 # We have to add some particles to act as a support structure.
 stiffness_support = 7837.9 # [n/m*m] line stiffness
@@ -171,16 +164,17 @@ dummy = interp.PhC_library['dummy']
 gao = interp.PhC_library['Gao']
 mark_4 = interp.PhC_library['Mark_4']
 mark_5 = interp.PhC_library['Mark_5']
+mark_6 = interp.PhC_library['Mark_6']
 
 
-inner_phc = mark_4
-inner_offset = 0
-outer_phc = mark_5
-outer_offset = np.pi
+inner_phc = mark_6
+inner_offset = np.pi
+outer_phc = mark_4
+outer_offset = 0
 
-twist_compensation = -15/180*np.pi*0
+twist_compensation = 0/180*np.pi
 
-r_transition = radius*4/5*1e5
+r_transition = radius*2/5
 #            phi_start,  phi_stop,   r_start,       r_stop,         midline,    PhC,        offset
 regions1 = [[-np.pi/4,   np.pi/4,    0,             r_transition,   0,          inner_phc, inner_offset],
             [np.pi/4,    np.pi*3/4,  0,             r_transition,   np.pi*2/4,  inner_phc, inner_offset],
@@ -281,8 +275,14 @@ if beam_plot:
 
 stability_check = False
 if stability_check:
-    J = OFC.calculate_stability_coefficients(displacement_range = [0.1*radius, 3])
+    J = OFC.calculate_stability_coefficients(displacement_range = [0.1*radius, 0.5])
+    J[:,2]=0
+    J[:,-1]=0
+    J[2,:]=0
+    J[-1,:]=0
+    J_no_z = J[J!=0].reshape([4,4])
     print(J)
+    print(np.linalg.det(J_no_z))
 
 force_plot = True
 force_check = False
@@ -300,10 +300,10 @@ if force_check:
                 [0,0,0,3,0,0],
                 [0,0,0,0,3,0],
                 [radius/3,0,0,0,0,0],
-                [0,radius/3,0,0,0,0],
-                [0,radius/3,0,3,0,0]]#,
-                # [0,0,0,0,0,3],
-                # [0,0,0,0,0,-3]]
+                [0,radius/3,0,0,0,0]]#,
+                #[0,radius/3,0,3,0,0]]#,
+                #[0,0,0,0,0,5],
+                #[0,0,0,0,0,-5]]
     for disp in disp_list:
         PS.displace(disp,suppress_warnings=True)
         f = OFC.force_value()
@@ -311,7 +311,8 @@ if force_check:
         f_net = np.sum(f, axis=0)
         f_abs = np.linalg.norm(f_net)
         if force_plot:
-            PS.plot_forces(f, length = 1/f_abs/2)
+            ax = PS.plot_forces(f, length = 1/f_abs/6)
+            ax.figure.tight_layout()
         f_res,m_res =OFC.calculate_restoring_forces()
         padding = 25 - len(str(disp))
         print(disp,' '*padding, 'f_res', *[f'\t{i:.3g}' for i in f_res], '\tm_res', *[f'\t{i:.3g}' for i in m_res])
@@ -319,7 +320,7 @@ if force_check:
 
 
 trajectory = True
-params["t_steps"]= 1e4
+params["t_steps"]= 1e5
 PS.COM_offset = np.array([0,0,-width_support/2])
 if trajectory:
     f = OFC.force_value()
@@ -327,12 +328,16 @@ if trajectory:
     f_z = np.sum(f, axis=0)[-1]
     print(f'req. {f_lift}, avail. {f_z}')
 
-    #PS.displace([0,radius/3,0,3,0,0],suppress_warnings=True)
+    PS.displace([0,radius/3,0,3,0,0],suppress_warnings=True)
     override_constraints(PS)
     SIM.simulate_trajectory(plotframes=1,
                             printframes=10,
-                            plot_forces=True,
-                            file_id = '_only_mk_4_',
+                            plot_forces=False,
+                            plot_net_force = True,
+                            plot_angles = [10,0],
+                            file_id = '_Shimmeney_shammey_',
                             deform = False,
-                            rotate = False)
-
+                            rotate = False,
+                            gravity = True)
+    z = (np.cumsum(PS.history['position'],axis=0)[-1]/length)[2]
+    print(f'Final altitude is {z}')
