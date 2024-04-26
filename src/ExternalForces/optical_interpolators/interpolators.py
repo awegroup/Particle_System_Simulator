@@ -5,6 +5,7 @@ Created on Mon Mar  4 12:01:37 2024
 @author: Mark Kalsbeek
 """
 from typing import Callable
+import logging
 import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
@@ -21,7 +22,8 @@ PhC_library = {
         'Mark_2':'src/ExternalForces/optical_interpolators/Mark_2_export.csv',
         'Mark_3':'src/ExternalForces/optical_interpolators/Mark_3_export.csv',
         'Mark_4':'src/ExternalForces/optical_interpolators/Mark_4_export.csv',
-        'Mark_5':'src/ExternalForces/optical_interpolators/Mark_5_export.csv'
+        'Mark_5':'src/ExternalForces/optical_interpolators/Mark_5_export.csv',
+        'Mark_6':'src/ExternalForces/optical_interpolators/Mark_6.csv'
     }
 
 def create_interpolator_specular() -> Callable:
@@ -68,25 +70,6 @@ def create_interpolator(fname: str, rotation:float = 0)-> Callable:
     incidence = data[:,:3]
     out = data[:,3:]
 
-    # incidence[:,1] -= rotation # Rotate azimuth
-    # incidence[:,2] -= rotation # Rotate polarisation
-    # incidence = wrap_spherical_coordinates(incidence[:,0],
-    #                                        incidence[:,1],
-    #                                        incidence[:,2])
-    # incidence = np.array(incidence).T
-
-    # out[:,1] -= rotation # Rotate azimuth
-    # out[:,0],out[:,1] = wrap_spherical_coordinates(out[:,0],
-    #                                                out[:,1])
-
-    # mask = incidence[:,1] == 0
-    # in_dupes = incidence.copy()[mask]
-    # out_dupes = out.copy()[mask]
-    # in_dupes[:,1] += 2*np.pi
-
-    # incidence = np.vstack((incidence,in_dupes))
-    # out = np.vstack((out,out_dupes))
-
     return linear_interpolator(incidence,out,rotation)
 
 class linear_interpolator():
@@ -111,6 +94,8 @@ class linear_interpolator():
         v = self.interp(coordinates)[0]
         v[1]+=self.rotation
         v[1]%=2*np.pi
+        if any(np.isnan(v)):
+            logging.warning("Interpolation error resulting in nan values for input "+str(coordinates))
         return v
 
     def old__call__(self, coordinates):
