@@ -567,8 +567,9 @@ class Simulate_Lightsail(Simulate):
                        plot_net_force = False,
                        file_id = '',
                        deform = True,
-                       rotate = True,
-                       gravity = False):
+                       spin = True,
+                       gravity = False,
+                       damping = None):
         """
         Parameters
         ----------
@@ -586,10 +587,13 @@ class Simulate_Lightsail(Simulate):
             allows to ad an ID infix in the filename to help distinguish plots from this sim run
         deform : bool
             allows to run a trajectory simulation without deformation
-        rotate : bool
+        spin : bool
             allows to run a trajectory simulation without rotation about z
         gravity : bool
             allows to enable gravitational force
+        damping : npt.ArrayLike
+            allows addition of damping forces to trajectory simulation. Should be length 6 array
+            representing damping in [x,y,z,rx,ry,rz]
 
         Returns
         -------
@@ -597,7 +601,7 @@ class Simulate_Lightsail(Simulate):
 
         """
 
-        keys_1d = ['abs_force']
+        keys_1d = ['abs_force', "E_kin_lin", "E_kin_rot"]
         for key in keys_1d:
             if not key in self.PS.history.keys():
                 self.PS.history[key] = np.zeros(int(self.params['t_steps']))
@@ -627,7 +631,7 @@ class Simulate_Lightsail(Simulate):
         dt = self.params['dt']
         v = np.zeros([6])
         interpolators = set()
-        if rotate:
+        if spin:
             for p in self.PS.particles:
                 interpolators.add(p.optical_interpolator)
 
@@ -645,19 +649,28 @@ class Simulate_Lightsail(Simulate):
             # Force and Moment Calculation
             f = self.FC.force_value()
             net_force, net_moment  = self.FC.calculate_restoring_forces(forces=f)
+            if type(damping)!=type(None):
+                f_damping = v*damping
+                net_force += f_damping[:3]
+                net_moment += f_damping[3:]
 
-            abs_force = np.linalg.norm(net_force)
+
             if gravity:
                 lin_acceleration = (net_force+f_grav)/mass
             else:
                 lin_acceleration = net_force/mass
             ang_acceleration= np.rad2deg(net_moment/mmoi)
 
+            abs_force = np.linalg.norm(net_force)
+            E_kin_lin = sum(1/2 * mass * v[:3]**2)
+            E_kin_rot = sum(1/2 * mmoi * v[3:]**2)
             self.PS.history['abs_force'][step]=abs_force
             self.PS.history['net_force'][step]=net_force
             self.PS.history['net_moment'][step]=net_moment
             self.PS.history['lin_accel'][step]=lin_acceleration
             self.PS.history['rot_accel'][step]=ang_acceleration
+            self.PS.history['E_kin_lin'][step]=E_kin_lin
+            self.PS.history['E_kin_rot'][step]=E_kin_rot
 
             if 'dt' in self.PS.history:
                 if len(self.PS.history['dt'])>0:
@@ -665,7 +678,7 @@ class Simulate_Lightsail(Simulate):
             COM = self.PS.calculate_center_of_mass()
             v += *(lin_acceleration*dt), *(ang_acceleration*dt)
             dx = v*dt
-            if not rotate:
+            if not spin:
                 dx[-1]=0
             else: # update rotation of each interpolator to account for rotation of PhC
                 for interp in interpolators:
@@ -689,7 +702,7 @@ class Simulate_Lightsail(Simulate):
                 ax.elev = plot_angles[0]
                 ax.azim = plot_angles[1]
                 if plot_net_force:
-                    if not rotate:
+                    if not spin:
                         net_moment[2] =0
                     ax.quiver(COM[0],COM[1],COM[2],
                               net_force[0],net_force[1],net_force[2],
@@ -724,14 +737,12 @@ class Simulate_Lightsail(Simulate):
             if (printframes and step%printframes==0) or done:
                 current_time = time.time()
                 t = current_time - start_time
-                x,_ = self.PS.x_v_current_3D
-                z_max = x[:,2].max()
                 location = np.round((COM/length_scale)[:2],3)
                 angles = np.round(attitude,2)
                 if 'dt' in self.PS.history:
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{z_max=:.4g}, \t{abs_force=:.2g}, \t{dt=:.2g}, \t {location=} [D], \t {angles=} [deg]'.replace('array',''))
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{abs_force=:.2g}, \t{dt=:.2g}, \t{location=} [D], \t{angles=} [deg], \t{E_kin_lin=:.2g}, \t{E_kin_rot=:.2g}'.replace('array',''))
                 else:
-                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{z_max=:.2g}, \t{abs_force=:.2g}, \t {location=} [D], \t {angles=} [deg]'.replace('array',''))
+                    print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{abs_force=:.2g}, \t{location=} [D], \t{angles=} [deg]'.replace('array',''))
             # break if it flies off
             if (abs(COM[0])>= length_scale*2 or abs(COM[1])>= abs(length_scale*2)
                 or abs(attitude[0])>=10 or abs(attitude[1])>=10):
@@ -754,6 +765,9 @@ class Simulate_Lightsail(Simulate):
         position_history = np.cumsum(self.PS.history['position'][:len(time_history)], axis=0)
         velocity_history = np.array(self.PS.history['velocity'][:len(time_history)])
         r = np.sqrt(position_history[:,0]**2 + position_history[:,1]**2)
+
+        E_kin_lin = self.PS.history['E_kin_lin'][:len(time_history)]
+        E_kin_rot = self.PS.history['E_kin_rot'][:len(time_history)]
 
         fig_movement = plt.figure(figsize=[10,8])
         ax1 = fig_movement.add_subplot(231)
@@ -781,10 +795,12 @@ class Simulate_Lightsail(Simulate):
         ax3.grid()
 
         ax4 = fig_movement.add_subplot(234)
-        ax4.plot(time_history,position_history[:,0]/length_scale)
-        ax4.set_title('x location')
+        ax4.plot(time_history,position_history[:,0]/length_scale, label = 'X')
+        ax4.plot(time_history,position_history[:,1]/length_scale, label = 'Y')
+        ax4.set_title('x and y location over time')
         ax4.set_xlabel('t [t]')
-        ax4.set_ylabel('x [D]')
+        ax4.set_ylabel('distance [D]')
+        ax4.legend()
         ax4.grid()
 
         ax5 = fig_movement.add_subplot(235)
@@ -802,7 +818,17 @@ class Simulate_Lightsail(Simulate):
 
         fig_movement.tight_layout()
 
-       #   ax.plot(position_history[:,0], velocity_history[:,0])
+        fig_velocity = plt.figure()
+
+        ax7 = fig_velocity.add_subplot()
+        ax7.set_title('Kinetic Energy')
+        ax7.plot(time_history, E_kin_lin, label ='lin')
+        ax7.plot(time_history, E_kin_rot, label='rot')
+        ax7.set_xlabel('Time [s]')
+        ax7.set_ylabel('Energy [J]')
+        ax7.legend()
+        ax7.grid()
+
 
 if __name__ == '__main__':
     params = {
