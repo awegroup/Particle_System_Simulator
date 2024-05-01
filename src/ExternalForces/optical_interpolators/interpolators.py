@@ -6,6 +6,9 @@ Created on Mon Mar  4 12:01:37 2024
 """
 from typing import Callable
 import logging
+from functools import lru_cache
+
+
 import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
@@ -78,27 +81,51 @@ def create_interpolator(fname: str, rotation:float = 0)-> Callable:
 class linear_interpolator():
     """
     maps [theta, phi, pol] to [theta, phi, mag]
+
+    cache_values : bool
+        enables lru caching for call function.  Note, you only want to use caching if you are
+        feeding coordinate tuples. Breaks when numpy arrays are fed in!
     """
-    def __init__(self, coordinates, values, rotation):
+    def __init__(self, coordinates, values, rotation, cache_values = True):
         self.coordinates = coordinates
+        self.cache_values = cache_values
         self.values = values
         self.tree = KDTree(coordinates)
         self.rotation = rotation
         self.interp = LinearNDInterpolator(coordinates, values)
 
-    def __call__(self,coordinates):
-        coordinates = coordinates.copy()-np.array([0,self.rotation,self.rotation])
-        coordinates[1]%=2*np.pi
-        pol = coordinates[2]
-        x = abs(np.cos(pol))
-        y = abs(np.sin(pol))
-        coordinates[2] = np.arctan(y/x)
+        if self.cache_values:
+            self.__call__ =  lru_cache(maxsize=None)(self.__call__)
 
-        v = self.interp(coordinates)[0]
-        v[1]+=self.rotation
-        v[1]%=2*np.pi
-        if any(np.isnan(v)):
-            logging.warning("Interpolation error resulting in nan values for input "+str(coordinates))
+
+    def __call__(self,coordinates):
+        #coordinates = coordinates.copy()-np.array([0,self.rotation,self.rotation])
+        coordinates = coordinates-np.array([0,self.rotation,self.rotation])
+        if len(coordinates.shape)>1:
+            coordinates[:,1]%=2*np.pi
+            pol = coordinates[:,2]
+            x = np.abs(np.cos(pol))
+            y = np.abs(np.sin(pol))
+            coordinates[:,2] = np.arctan(y/x)
+
+            v = self.interp(coordinates)
+            v[:,1]+=self.rotation
+            v[:,1]%=2*np.pi
+            if np.any(np.isnan(v)):
+                logging.warning("Interpolation error resulting in nan values for input "+str(coordinates[np.isnan(v)]))
+
+        else:
+            coordinates[1]%=2*np.pi
+            pol = coordinates[2]
+            x = abs(np.cos(pol))
+            y = abs(np.sin(pol))
+            coordinates[2] = np.arctan(y/x)
+
+            v = self.interp(coordinates)[0]
+            v[1]+=self.rotation
+            v[1]%=2*np.pi
+            if any(np.isnan(v)):
+                logging.warning("Interpolation error resulting in nan values for input "+str(coordinates))
         return v
 
     def old__call__(self, coordinates):
@@ -163,7 +190,7 @@ def check_interpolator(interp, coordinates, ax = None):
 # PhC_Gao = create_interpolator(crystal_dict['Gao'])
 if __name__ == '__main__':
     dummy = create_interpolator(PhC_library['dummy'], 0)
-    dummy = create_interpolator(PhC_library['Mark_5'], 0)
+    dummy = create_interpolator(PhC_library['Mark_4'], 0)
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')

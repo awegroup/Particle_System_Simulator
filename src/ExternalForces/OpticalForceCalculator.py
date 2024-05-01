@@ -8,7 +8,7 @@ Created on Tue Nov  7 14:19:21 2023
 """
 from enum import Enum
 from itertools import compress
-
+from collections import defaultdict
 
 import numpy as np
 import numpy.typing as npt
@@ -84,6 +84,7 @@ class OpticalForceCalculator(Force):
                 if not hasattr(self, 'optical_interpolators'):
                     self.create_phc_map(mask)
 
+
                 forces[mask] = self.calculate_arbitrary_phc_force(area_vectors[mask],
                                                                   intensity_vectors[mask],
                                                                   polarisation_vectors[mask],
@@ -92,7 +93,26 @@ class OpticalForceCalculator(Force):
 
     def create_phc_map(self, mask):
         filtered_particles = compress(self.PS.particles, mask)
-        self.optical_interpolators = [p.optical_interpolator for p in filtered_particles]
+        original_indices = [i for i, m in enumerate(mask) if m]
+
+        self.optical_interpolators = []
+
+        # let's check if it's one or multiple PHC's
+        self.phc_dict = defaultdict(list)
+        for i, p in enumerate(filtered_particles):
+            self.optical_interpolators.append(p.optical_interpolator)
+            #build dict of mask entries and which PhC they belong to.
+            self.phc_dict[p.optical_interpolator].append(original_indices[i])
+
+        for key in self.phc_dict.keys():
+            self.phc_dict[key] = self.create_submask(self.phc_dict[key])
+
+    def create_submask(self, indice_list):
+        length = len(self.PS.particles)
+        submask = np.zeros(length, dtype=bool)
+        for i in indice_list:
+            submask[i] = True
+        return submask
 
 
     def calculate_specular_force(self, area_vectors, intensity_vectors):
@@ -216,9 +236,17 @@ class OpticalForceCalculator(Force):
 
         # Find directions of outgoing rays
         # Interpolator([polar_in, azimuth_in, polarization_in])->[polar_out, azimuth_out, magnitude]
-        reflected_ray = [interp(incoming_ray[i])
-                         for i, interp
-                         in enumerate(optical_interpolators)] # [polar_out, azimuth_out, magnitude]
+        reflected_ray = np.zeros(incoming_ray.shape)
+
+        for phc in self.phc_dict:
+            submask = self.phc_dict[phc]
+            reflected_ray[submask] = phc(incoming_ray[submask])
+
+
+        # reflected_ray = [interp(incoming_ray[i])
+        # reflected_ray = [interp(tuple(incoming_ray[i]))
+        #                  for i, interp
+        #                  in enumerate(optical_interpolators)] # [polar_out, azimuth_out, magnitude]
         polar_angles_out, azimuth_angles_out, magnitudes = np.array(reflected_ray).T
 
         # Switch reference frame again; made easier becasue we are going to [0,0,1]
