@@ -23,7 +23,10 @@ PhC_library = {
         'Mark_3':'src/ExternalForces/optical_interpolators/Mark_3_export.csv',
         'Mark_4':'src/ExternalForces/optical_interpolators/Mark_4_export.csv',
         'Mark_5':'src/ExternalForces/optical_interpolators/Mark_5_export.csv',
-        'Mark_6':'src/ExternalForces/optical_interpolators/Mark_6.csv'
+        'Mark_6':'src/ExternalForces/optical_interpolators/Mark_6.csv',
+        'Mark_7':'src/ExternalForces/optical_interpolators/Mark_7_export.csv',
+        'Mark_8':'src/ExternalForces/optical_interpolators/Mark_8_export.csv',
+        'Mark_9':'src/ExternalForces/optical_interpolators/Mark_9_export.csv'
     }
 
 def create_interpolator_specular() -> Callable:
