@@ -807,16 +807,21 @@ class ParticleSystem:
             raise AttributeError("Expected list of 6 arguments representing "
                                  f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead")
 
-        if hasattr(self, 'current_displacement'): #
+        if hasattr(self, 'current_displacement'):
             if (type(self.current_displacement) != type(None)
-                and not suppress_warnings and not
-                np.all(self.current_displacement == -np.array(displacement))):
+                and not suppress_warnings
+                and not np.all(self.current_displacement == -np.array(displacement))):
                 # I want to allow this behavior,
                 #but also inform user that by doing it this way they're breaking stuff
                 logging.warning(f"Particle system is already displaced: \
 {self.current_displacement=}; displace called multiple times without\
  un-displacing. un-displacing is now broken.")
-        self.current_displacement = displacement
+            elif type(self.current_displacement) != type(None):
+                self.current_displacement += np.array(displacement)
+            else:
+                self.current_displacement = np.array(displacement, dtype =float)
+        else:
+            self.current_displacement = np.array(displacement, dtype =float)
 
         qx, qy, qz, *_ = displacement
         locations, _ = self.x_v_current_3D
@@ -917,6 +922,16 @@ class ParticleSystem:
         rotation_matrix = Rotation.from_euler(order, [alpha, beta, gamma], degrees=True)
         rotated_mesh = np.matmul(rotation_matrix.as_matrix(), mesh.T).T
         return rotated_mesh
+
+    def reset_history(self):
+        for key in self.history.keys():
+
+            if type(self.history[key]) == list:
+                self.history[key] = []
+            else:
+                self.history[key] = np.zeros(self.history[key].shape)
+
+
 if __name__ == "__main__":
     params = {
         # model parameters
