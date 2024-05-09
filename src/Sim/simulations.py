@@ -737,17 +737,22 @@ class Simulate_Lightsail(Simulate):
             if (printframes and step%printframes==0) or done:
                 current_time = time.time()
                 t = current_time - start_time
-                location = np.round((COM/length_scale)[:2],3)
-                angles = np.round(attitude,2)
+                location = np.round((COM/length_scale)[:2],4)
+                angles = np.round(attitude,3)
                 if 'dt' in self.PS.history:
                     print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{abs_force=:.2g}, \t{dt=:.2g}, \t{location=} [D], \t{angles=} [deg], \t{E_kin_lin=:.2g}, \t{E_kin_rot=:.2g}'.replace('array',''))
                 else:
                     print(f'{step=}, \tt={t//60:.0f}m {t%60:.2f}s, \t{abs_force=:.2g}, \t{location=} [D], \t{angles=} [deg]'.replace('array',''))
             # break if it flies off
-            if (abs(COM[0])>= length_scale*2 or abs(COM[1])>= abs(length_scale*2)
-                or abs(attitude[0])>=10 or abs(attitude[1])>=10):
+            dx_recent = np.sum(np.abs(self.PS.history['position'][step-10:step][:,:2]))
+            if step> min_steps and dx_recent<self.params['convergence_threshold']:
+                done= True
+            elif (abs(COM[0])>= length_scale*3 or abs(COM[1])>= length_scale*3
+                       or abs(attitude[0])>=10 or abs(attitude[1])>=10):
+                COM/=length_scale
                 print(f'Simulation halted: Lightsail broke perimiter {COM=}')
                 done = True
+
 
             step+= 1
 
@@ -759,7 +764,7 @@ class Simulate_Lightsail(Simulate):
         if plotframes:
             self.plot_flight_hist()
 
-    def plot_flight_hist(self):
+    def plot_flight_hist(self, energy = False):
         length_scale = self.length_scale
         time_history = np.cumsum(self.PS.history['dt'], axis=0)
         position_history = np.cumsum(self.PS.history['position'][:len(time_history)], axis=0)
@@ -771,7 +776,8 @@ class Simulate_Lightsail(Simulate):
 
         fig_movement = plt.figure(figsize=[10,8])
         ax1 = fig_movement.add_subplot(231)
-        ax1.plot(position_history[:,0]/length_scale,position_history[:,1]/length_scale)
+        ax1.plot(position_history[:,0]/length_scale,position_history[:,1]/length_scale,
+                 marker='*', lw=0.5, ms=2)
         ax1.set_title('X-Y trajectory')
         ax1.set_xlabel('X [D]')
         ax1.set_ylabel('Y [D]')
@@ -781,22 +787,26 @@ class Simulate_Lightsail(Simulate):
         ax1.grid()
 
         ax2 = fig_movement.add_subplot(232)
-        ax2.plot(position_history[:,0]/length_scale,position_history[:,4])
+        ax2.plot(position_history[:,0]/length_scale,position_history[:,4],
+                 marker='*', lw=0.5, ms=2)
         ax2.set_title('X-$\\theta_{y}$ trajectory')
         ax2.set_xlabel('X [D]')
         ax2.set_ylabel('$\\theta_{y}$ [deg]')
         ax2.grid()
 
         ax3 = fig_movement.add_subplot(236)
-        ax3.plot(r/length_scale, position_history[:,2]/length_scale)
+        ax3.plot(r/length_scale, position_history[:,2]/length_scale,
+                 marker='*', lw=0.5, ms=2)
         ax3.set_title('r-z trajectory')
         ax3.set_xlabel('r [D]')
         ax3.set_ylabel('z [D]')
         ax3.grid()
 
         ax4 = fig_movement.add_subplot(234)
-        ax4.plot(time_history,position_history[:,0]/length_scale, label = 'X')
-        ax4.plot(time_history,position_history[:,1]/length_scale, label = 'Y')
+        ax4.plot(time_history,position_history[:,0]/length_scale, label = 'X',
+                 marker='*', lw=0.5, ms=2)
+        ax4.plot(time_history,position_history[:,1]/length_scale, label = 'Y',
+                 marker='*', lw=0.5, ms=2)
         ax4.set_title('x and y location over time')
         ax4.set_xlabel('t [t]')
         ax4.set_ylabel('distance [D]')
@@ -804,13 +814,15 @@ class Simulate_Lightsail(Simulate):
         ax4.grid()
 
         ax5 = fig_movement.add_subplot(235)
-        ax5.plot(position_history[:,3], position_history[:,4])
+        ax5.plot(position_history[:,3], position_history[:,4],
+                 marker='*', lw=0.5, ms=2)
         ax5.set_ylabel('$\\theta_{y}$ [deg]')
         ax5.set_xlabel('$\\theta_{x}$ [deg]')
         ax5.grid()
 
         ax6 = fig_movement.add_subplot(233)
-        ax6.plot(position_history[:,1]/length_scale,position_history[:,3])
+        ax6.plot(position_history[:,1]/length_scale,position_history[:,3],
+                 marker='*', lw=0.5, ms=2)
         ax6.set_title('Y-$\\theta_{x}$ trajectory')
         ax6.set_xlabel('Y [D]')
         ax6.set_ylabel('$\\theta_{x}$ [deg]')
@@ -818,16 +830,19 @@ class Simulate_Lightsail(Simulate):
 
         fig_movement.tight_layout()
 
-        fig_velocity = plt.figure()
+        if energy:
+            fig_velocity = plt.figure()
 
-        ax7 = fig_velocity.add_subplot()
-        ax7.set_title('Kinetic Energy')
-        ax7.plot(time_history, E_kin_lin, label ='lin')
-        ax7.plot(time_history, E_kin_rot, label='rot')
-        ax7.set_xlabel('Time [s]')
-        ax7.set_ylabel('Energy [J]')
-        ax7.legend()
-        ax7.grid()
+            ax7 = fig_velocity.add_subplot()
+            ax7.set_title('Kinetic Energy')
+            ax7.plot(time_history, E_kin_lin, label ='lin',
+                     marker='*', lw=0.5, ms=2)
+            ax7.plot(time_history, E_kin_rot, label='rot',
+                     marker='*', lw=0.5, ms=2)
+            ax7.set_xlabel('Time [s]')
+            ax7.set_ylabel('Energy [J]')
+            ax7.legend()
+            ax7.grid()
 
 
 if __name__ == '__main__':
