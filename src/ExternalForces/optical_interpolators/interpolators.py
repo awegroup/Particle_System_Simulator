@@ -76,7 +76,7 @@ def create_interpolator(fname: str, rotation:float = 0)-> Callable:
     incidence = data[:,:3]
     out = data[:,3:]
 
-    return linear_interpolator(incidence,out,rotation)
+    return linear_interpolator(incidence,out,rotation, name=fname)
 
 class linear_interpolator():
     """
@@ -86,7 +86,7 @@ class linear_interpolator():
         enables lru caching for call function.  Note, you only want to use caching if you are
         feeding coordinate tuples. Breaks when numpy arrays are fed in!
     """
-    def __init__(self, coordinates, values, rotation, cache_values = True):
+    def __init__(self, coordinates, values, rotation, cache_values = True, name=None):
         self.coordinates = coordinates
         self.cache_values = cache_values
         self.values = values
