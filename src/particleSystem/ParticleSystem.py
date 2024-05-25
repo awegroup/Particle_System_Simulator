@@ -436,6 +436,10 @@ class ParticleSystem:
         for i, particle in enumerate(self.__particles):
             particle.update_pos_unsafe(x_new[3*i: 3*i+3])
 
+    def update_vel_unsafe(self, v_new: npt.ArrayLike):
+        for i, particle in enumerate(self.__particles):
+            particle.update_vel_unsafe(v_new[3*i: 3*i+3])
+
     def __save_state(self):
         self.__x_min2 = self.__x_min1
         self.__x_min1 = self.__pack_x_current()
