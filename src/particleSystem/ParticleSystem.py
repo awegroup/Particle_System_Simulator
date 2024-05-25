@@ -500,6 +500,10 @@ class ParticleSystem:
     def params(self):
         return self.__params
 
+    @property
+    def n(self):
+        return self.__n
+
 
     def plot(self, ax=None, colors = None):
         """"Plots current system configuration"""
@@ -905,7 +909,7 @@ class ParticleSystem:
 
         return mesh
 
-    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list, order = 'zyx'):
+    def rotate_mesh(self, mesh : npt.ArrayLike, rotations : list, order = 'xyz'):
         """
         Rotates mesh locations
 
@@ -922,8 +926,7 @@ class ParticleSystem:
             shape n x 3 array holding x, y, z locations of each point
 
         """
-        gamma, beta, alpha = rotations
-        rotation_matrix = Rotation.from_euler(order, [alpha, beta, gamma], degrees=True)
+        rotation_matrix = Rotation.from_euler(order, rotations, degrees=True)
         rotated_mesh = np.matmul(rotation_matrix.as_matrix(), mesh.T).T
         return rotated_mesh
 
