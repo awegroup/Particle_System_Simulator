@@ -7,11 +7,11 @@ import numpy.typing as npt
 
 
 class Particle(SystemObject):
-    def __init__(self, 
-                 x: npt.ArrayLike, 
-                 v: npt.ArrayLike, 
-                 m: float, 
-                 fixed: bool, 
+    def __init__(self,
+                 x: npt.ArrayLike,
+                 v: npt.ArrayLike,
+                 m: float,
+                 fixed: bool,
                  constraint: npt.NDArray = None,
                  constraint_type: str = 'free'):
         """
@@ -28,13 +28,13 @@ class Particle(SystemObject):
         fixed : bool
             Wether or not the particle is fixed
         constraint : npt.NDArray, optional
-            Desrcribes specific constraint if particle is fixed. The default is 
+            Desrcribes specific constraint if particle is fixed. The default is
             None. This indicates that it's fixed in all three dimentions.
         constraint_type : str, optional
             Describes constraint type. Can be free, point, line or plane
             Can be left default for fixed points, as they're indicated by
             passing constraint = [0,0,0]
-            
+
         Raises
         ------
         AttributeError
@@ -52,7 +52,7 @@ class Particle(SystemObject):
         self.__constraint = None
         self.__constraint_type = constraint_type.lower()
         self.connections = []
-        
+
 
         if self.__fixed:
             self.validate_constraint(constraint)
@@ -61,8 +61,8 @@ class Particle(SystemObject):
 
 
     def __str__(self):
-        return (f"Particle Object, position [m]: [{self.__x[0]}, {self.__x[1]}, {self.__x[2]}], " 
-               f"velocity [m/s]: [{self.__v[0]}, {self.__v[1]}, {self.__v[2]}], mass [kg]: {self.__m}" 
+        return (f"Particle Object, position [m]: [{self.__x[0]}, {self.__x[1]}, {self.__x[2]}], "
+               f"velocity [m/s]: [{self.__v[0]}, {self.__v[1]}, {self.__v[2]}], mass [kg]: {self.__m}"
                f", fixed: {self.__fixed}, {self.__constraint=}, {self.__constraint_type=}")
 
     def validate_constraint(self, constraint):
@@ -75,7 +75,7 @@ class Particle(SystemObject):
                 raise AttributeError(f"Incorrect constraint type set, expected"
                                      f" line or plane, got "
                                      f"{self.__constraint_type}")
-            try: 
+            try:
                 self.__constraint = np.array(constraint, dtype=float).reshape(1, 3)
             except (ValueError, TypeError) as e:
                 raise AttributeError(f"Particle set as 'fixed' but constraint "
@@ -91,21 +91,20 @@ class Particle(SystemObject):
         else:
             normalised_constraint = self.__constraint / np.linalg.norm(self.__constraint)
             if self.__constraint_type == 'plane':
-                projection_matrix = np.eye(3) - np.outer(normalised_constraint, 
+                projection_matrix = np.eye(3) - np.outer(normalised_constraint,
                                                          normalised_constraint)
                 self.constraint_projection_matrix = projection_matrix
             elif self.__constraint_type == 'line':
-                projection_matrix = np.outer(normalised_constraint, 
+                projection_matrix = np.outer(normalised_constraint,
                                              normalised_constraint)
                 self.constraint_projection_matrix = projection_matrix
-                
+
     def update_pos(self, new_pos: npt.ArrayLike):
         if not self.__fixed:
             self.__x = np.array(new_pos)
         else:
             self.__x += self.constraint_projection_matrix.dot(np.array(new_pos) - self.__x)
 
-    
     def update_pos_unsafe(self, new_pos : npt.ArrayLike):
         """position update method that will override locations of fixed nodes"""
         self.__x = np.array(new_pos)
@@ -116,6 +115,9 @@ class Particle(SystemObject):
         else:
             self.__v += self.constraint_projection_matrix.dot(np.array(new_vel) - self.__v)
 
+    def update_vel_unsafe(self, new_vel : npt.ArrayLike):
+        """position update method that will override locations of fixed nodes"""
+        self.__v = np.array(new_vel)
 
     @property
     def x(self):
@@ -128,25 +130,25 @@ class Particle(SystemObject):
     @property
     def m(self):
         return self.__m
-    
+
     def set_m(self, m):
         self.__m = m
-    
+
     @property
     def fixed(self):
         return self.__fixed
-    
+
     def set_fixed(self, fixed, constraint = None, constraint_type = 'free'):
         self.__fixed = fixed
         self.__constraint_type = constraint_type
         self.validate_constraint(constraint)
         if self.__fixed:
             self.constraint_projection()
-        
+
     @property
     def constraint_type(self):
         return self.__constraint_type
-    
+
 
 
 if __name__ == "__main__":
