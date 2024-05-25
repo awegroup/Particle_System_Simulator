@@ -25,6 +25,7 @@ PhC_library = {
         'Mark_2':'src/ExternalForces/optical_interpolators/Mark_2_export.csv',
         'Mark_3':'src/ExternalForces/optical_interpolators/Mark_3_export.csv',
         'Mark_4':'src/ExternalForces/optical_interpolators/Mark_4_export.csv',
+        'Mark_4.1':'src/ExternalForces/optical_interpolators/Mark_4.1_export.csv',
         'Mark_5':'src/ExternalForces/optical_interpolators/Mark_5_export.csv',
         'Mark_6':'src/ExternalForces/optical_interpolators/Mark_6.csv',
         'Mark_7':'src/ExternalForces/optical_interpolators/Mark_7_export.csv',
@@ -76,6 +77,15 @@ def create_interpolator(fname: str, rotation:float = 0)-> Callable:
     incidence = data[:,:3]
     out = data[:,3:]
 
+    if not np.any(np.pi*2 in incidence[:,1]):
+        mask = incidence[:,1] == 0
+        in_dupes = incidence.copy()[mask]
+        out_dupes = out.copy()[mask]
+        in_dupes[:,1] += 2*np.pi
+
+        incidence = np.vstack((incidence,in_dupes))
+        out = np.vstack((out,out_dupes))
+
     return linear_interpolator(incidence,out,rotation, name=fname)
 
 class linear_interpolator():
@@ -86,7 +96,7 @@ class linear_interpolator():
         enables lru caching for call function.  Note, you only want to use caching if you are
         feeding coordinate tuples. Breaks when numpy arrays are fed in!
     """
-    def __init__(self, coordinates, values, rotation, cache_values = True, name=None):
+    def __init__(self, coordinates, values, rotation, cache_values = False, name=None):
         self.coordinates = coordinates
         self.cache_values = cache_values
         self.values = values
@@ -102,6 +112,7 @@ class linear_interpolator():
         #coordinates = coordinates.copy()-np.array([0,self.rotation,self.rotation])
         coordinates = coordinates-np.array([0,self.rotation,self.rotation])
         if len(coordinates.shape)>1:
+            coordinates = np.round(coordinates, 8)
             coordinates[:,1]%=2*np.pi
             pol = coordinates[:,2]
             x = np.abs(np.cos(pol))
@@ -112,7 +123,10 @@ class linear_interpolator():
             v[:,1]+=self.rotation
             v[:,1]%=2*np.pi
             if np.any(np.isnan(v)):
-                logging.warning("Interpolation error resulting in nan values for input "+str(coordinates[np.isnan(v)]))
+                for i, line in enumerate(v):
+                    if np.any(np.isnan(line)):
+                        logging.warning("Interpolation error resulting in nan values for input "+str(coordinates[i,:]))
+            v = np.nan_to_num(v)
 
         else:
             coordinates[1]%=2*np.pi
