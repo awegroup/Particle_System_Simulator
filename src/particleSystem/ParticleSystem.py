@@ -12,9 +12,9 @@ from scipy.spatial import Delaunay
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
-from src.particleSystem.Particle import Particle
-from src.particleSystem.SpringDamper import SpringDamper
 
+from .Particle import Particle
+from .SpringDamper import SpringDamper
 
 class ParticleSystem:
     def __init__(self,

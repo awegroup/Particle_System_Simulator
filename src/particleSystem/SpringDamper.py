@@ -4,8 +4,8 @@ Child Class 'SpringDamper', for spring-damper objects to be instantiated in Part
 from enum import Enum
 import numpy as np
 
-from src.particleSystem.ImplicitForce import ImplicitForce
-from src.particleSystem.Particle import Particle
+from .ImplicitForce import ImplicitForce
+from .Particle import Particle
 
 
 class SpringDamperType(Enum):

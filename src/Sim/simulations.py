@@ -15,11 +15,8 @@ import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
-import sys, os
-sys.path.append(os.path.abspath('../..'))
-
-from src.particleSystem.ParticleSystem import ParticleSystem
-import src.Mesh.mesh_functions as MF
+from ..particleSystem.ParticleSystem import ParticleSystem
+from ..Mesh import mesh_functions as MF
 
 
 

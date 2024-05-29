@@ -7,7 +7,7 @@ Created on Fri Dec  15 12:27:53 2023
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from src.particleSystem.SpringDamper import SpringDamperType
+from ..particleSystem.SpringDamper import SpringDamperType
 
 
 
@@ -226,7 +226,14 @@ def mesh_airbag_square_cross(length, width= 0, mesh_edge_length = 1/10,  params 
 
     return connections, initial_conditions
 
-def mesh_phc_square_cross(length, width= 0, mesh_edge_length = 1/10, params = params, noncompressive = False, sparse = False):
+def mesh_phc_square_cross(length, 
+                            width= 0, 
+                            mesh_edge_length = 1/10, 
+                            params = params, 
+                            noncompressive = False, 
+                            sparse = False,
+                            fix_outer = True,
+                            center_lightsail = True):
     required = ['E_x', 'E_y', "G", "thickness"]
 
     for key in required:
@@ -260,7 +267,11 @@ def mesh_phc_square_cross(length, width= 0, mesh_edge_length = 1/10, params = pa
     xyz_coordinates = np.column_stack((xy_coordinates,np.zeros(len(xy_coordinates)).T))
 
     for xyz in xyz_coordinates:
-        initial_conditions.append([xyz, np.zeros(3), params['m_segment'], False])
+        if (fix_outer and (xyz[0] == 0 or xyz[0] == length or 
+                           xyz[1] == 0 or xyz[1] == width)):
+            initial_conditions.append([xyz, np.zeros(3), params['m_segment'], True])
+        else:
+            initial_conditions.append([xyz, np.zeros(3), params['m_segment'], False])
 
     neglect_diagonals = False
     if params["G"] == 0:
@@ -284,6 +295,11 @@ def mesh_phc_square_cross(length, width= 0, mesh_edge_length = 1/10, params = pa
 
         for link in connections:
             link.append(linktype)
+
+    if center_lightsail:
+        offset = np.array([width/2, length/2,0])
+        for p in initial_conditions:
+            p[0] -= offset
 
     return connections, initial_conditions
 
