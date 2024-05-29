@@ -204,7 +204,7 @@ def check_interpolator(interp, coordinates, ax = None):
 # PhC_Gao = create_interpolator(crystal_dict['Gao'])
 if __name__ == '__main__':
     dummy = create_interpolator(PhC_library['dummy'], 0)
-    dummy = create_interpolator(PhC_library['Mark_4'], 0)
+    dummy = create_interpolator(PhC_library['Mark_4.1'], 0)
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
@@ -226,8 +226,9 @@ if __name__ == '__main__':
     ax.set_zlabel('z')
     ax.set_aspect('equal')
 
-    out = dummy.values
-    incidence = dummy.coordinates
+    mask = np.isclose(dummy.coordinates[:,2],np.pi/2)
+    out = dummy.values[mask]
+    incidence = dummy.coordinates[mask]
     theta= incidence[:,0]
     phi = incidence[:,1]
 
