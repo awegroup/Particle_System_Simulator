@@ -49,7 +49,7 @@ params['E_y'] = params['E']*18/100
 
 
 # Setup mesh
-n_segments = 25 # make sure this is uneven so there are no particles on the centerline
+n_segments = 15 # make sure this is uneven so there are no particles on the centerline
 length = 1
 mesh = MF.mesh_phc_square_cross(length,
                                 mesh_edge_length=length/n_segments,
@@ -141,11 +141,11 @@ SIM = Simulate_Lightsail(PS,OFC,params)
 
 #%% Plot displaced PS with distributed and net forces
 
-plot_check = False
+plot_check = True
 deform = True
 
 if plot_check:
-    OFC.displace_particle_system([0,0,0,0,5,0])
+    PS.displace([0,0,0,0,3,0])
     if deform:
         SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping',file_id='_check_')
 
@@ -154,6 +154,7 @@ if plot_check:
         ax_kin.semilogy(PS.history["E_kin"])
         ax_f = fig_convergence.add_subplot(212)
         ax_f.semilogy(PS.history["net_force"])
+        fig_convergence.show()
 
     forces = OFC.force_value()
 
@@ -163,7 +164,7 @@ if plot_check:
     ax = fig.add_subplot(projection='3d')
     ax = PS.plot(ax)
 
-    COM = OFC.find_center_of_mass()
+    COM = PS.calculate_center_of_mass()
     x,_ = PS.x_v_current_3D
 
     a_u = forces[:,0]
@@ -180,123 +181,125 @@ if plot_check:
               net_moments[0],net_moments[1],net_moments[2],
               length = 2, label ='Net Moment', color='magenta')
     fig.tight_layout()
+    plt.show()
 
     # Very important to put it back where it came from!
-    OFC.un_displace_particle_system()
+    PS.un_displace()
 
+rot_and_trans = False
+if rot_and_trans:
+    #%% Getting translation and rotation data
+    print('Starting rotations and translations')
+    translations = np.linspace(-length,length,17)
+    rotations = np.linspace(-10,10,17)
 
-#%% Getting translation and rotation data
-print('Starting rotations and translations')
-translations = np.linspace(-length,length,17)
-rotations = np.linspace(-10,10,17)
-
-translation_plot = []
-trans_plot = False
-if trans_plot:
-    fig0 = plt.figure(figsize = [20,16])
-
-# Deform the PS for each step?
-resimulate_on_displacement = True
-
-print("\n\nCalculating rotations")
-for i, t in enumerate(translations):
-    print(f'\nTranslation {t=}')
-    OFC.displace_particle_system([t,0,0,0,0,0])
-
-    if resimulate_on_displacement:
-        SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping',file_id=f'_{t}_')
-
-        # The force data is a little sensitive to random fluctuation, so instead I'm pulling the last
-        # 50 entries from a ring buffer I added to the history.
-        net_force = np.array([np.sum(forces,axis=0) for forces in PS.history['forces_ringbuffer']])
-        net_force = np.sum(net_force, axis=0)/len(PS.history['forces_ringbuffer'])
-        _, net_moments = OFC.calculate_restoring_forces()
-    else:
-        net_force, net_moments = OFC.calculate_restoring_forces()
+    translation_plot = []
+    trans_plot = False
     if trans_plot:
-        fig0.clear()
-        ax0 = fig0.add_subplot(projection='3d')
-        ax0.set_xlim([-0.5,1.5])
-        ax0.set_ylim([0,1])
-        ax0.set_zlim([0,0.5])
-        ax0.set_aspect('equal')
-        ax0 = PS.plot_forces(OFC.force_value(),ax0)
-        ax0.set_title(f'{t:.1f}')
-        COM = OFC.find_center_of_mass()
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_force[0],net_force[1],net_force[2],
-                  length = 1/2, label ='Net Force', color='r')
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_moments[0],net_moments[1],net_moments[2],
-                  length = 2, label ='Net Moment', color='magenta')
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_moments[0],net_moments[1],net_moments[2],
-                  length = 1.4, color='magenta')
-        fig0.tight_layout()
-        fig0.savefig(f'temp/translation-{i}-{t:.2f}.jpg', dpi = 200, format = 'jpg')
-    OFC.un_displace_particle_system()
+        fig0 = plt.figure(figsize = [20,16])
 
-    translation_plot.append([t, *net_force, *net_moments])
+    # Deform the PS for each step?
+    resimulate_on_displacement = True
 
-rotation_plot=[]
-rot_plot = False
-if rot_plot:
-    fig0 = plt.figure(figsize = [20,16])
+    print("\n\nCalculating rotations")
+    for i, t in enumerate(translations):
+        print(f'\nTranslation {t=}')
+        PS.displace([t,0,0,0,0,0])
 
-print("\n\nCalculating rotations")
-for i, r in enumerate(rotations):
-    print(f'\nRotation {r=}')
-    OFC.displace_particle_system([0,0,0,0,r,0])
+        if resimulate_on_displacement:
+            SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping',file_id=f'_{t}_')
 
-    if resimulate_on_displacement:
-        SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping', file_id=f'_{r}_')
+            # The force data is a little sensitive to random fluctuation, so instead I'm pulling the last
+            # 50 entries from a ring buffer I added to the history.
+            net_force = np.array([np.sum(forces,axis=0) for forces in PS.history['forces_ringbuffer']])
+            net_force = np.sum(net_force, axis=0)/len(PS.history['forces_ringbuffer'])
+            _, net_moments = OFC.calculate_restoring_forces()
+        else:
+            net_force, net_moments = OFC.calculate_restoring_forces()
+        if trans_plot:
+            fig0.clear()
+            ax0 = fig0.add_subplot(projection='3d')
+            ax0.set_xlim([-0.5,1.5])
+            ax0.set_ylim([0,1])
+            ax0.set_zlim([0,0.5])
+            ax0.set_aspect('equal')
+            ax0 = PS.plot_forces(OFC.force_value(),ax0)
+            ax0.set_title(f'{t:.1f}')
+            COM = PS.calculate_center_of_mass()
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_force[0],net_force[1],net_force[2],
+                      length = 1/2, label ='Net Force', color='r')
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_moments[0],net_moments[1],net_moments[2],
+                      length = 2, label ='Net Moment', color='magenta')
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_moments[0],net_moments[1],net_moments[2],
+                      length = 1.4, color='magenta')
+            fig0.tight_layout()
+            fig0.savefig(f'temp/translation-{i}-{t:.2f}.jpg', dpi = 200, format = 'jpg')
+        PS.un_displace()
 
-        # The force data is a little sensitive to random fluctuation, so instead I'm pulling the last
-        # 30 entries from a ring buffer I added to the history.
-        net_force = np.array([np.sum(forces,axis=0) for forces in PS.history['forces_ringbuffer']])
-        net_force = np.sum(net_force, axis=0)/len(PS.history['forces_ringbuffer'])
-        _, net_moments = OFC.calculate_restoring_forces()
-    else:
-        net_force, net_moments = OFC.calculate_restoring_forces()
+        translation_plot.append([t, *net_force, *net_moments])
 
+    rotation_plot=[]
+    rot_plot = False
     if rot_plot:
-        fig0.clear()
-        ax0 = fig0.add_subplot(projection='3d')
-        ax0 = PS.plot_forces(OFC.force_value(),ax0)
-        ax0.set_title(f'{r}')
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_force[0],net_force[1],net_force[2],
-                  length = 0.5, label ='Net Force', color='r')
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_moments[0],net_moments[1],net_moments[2],
-                  length = 5, label ='Net Moment', color='magenta')
-        ax0.quiver(COM[0],COM[1],COM[2],
-                  net_moments[0],net_moments[1],net_moments[2],
-                  length = 3.5, color='magenta')
-        ax0.legend()
-        ax0.set_xlim([0,1])
-        ax0.set_ylim([0,1])
-        ax0.set_zlim([-0.1,0.1])
-        ax0.set_aspect('equal')
-        fig0.tight_layout()
-        fig0.savefig(f'temp/rotation-{i}-{r:.1f}.jpg', dpi = 200, format = 'jpg')
+        fig0 = plt.figure(figsize = [20,16])
 
-    OFC.un_displace_particle_system()
+    print("\n\nCalculating rotations")
+    for i, r in enumerate(rotations):
+        print(f'\nRotation {r=}')
+        PS.displace([0,0,0,0,r,0])
 
-    rotation_plot.append([r, *net_force, *net_moments])
+        if resimulate_on_displacement:
+            SIM.run_simulation(plotframes=0, printframes=50, simulation_function='kinetic_damping', file_id=f'_{r}_')
+
+            # The force data is a little sensitive to random fluctuation, so instead I'm pulling the last
+            # 30 entries from a ring buffer I added to the history.
+            net_force = np.array([np.sum(forces,axis=0) for forces in PS.history['forces_ringbuffer']])
+            net_force = np.sum(net_force, axis=0)/len(PS.history['forces_ringbuffer'])
+            _, net_moments = OFC.calculate_restoring_forces()
+        else:
+            net_force, net_moments = OFC.calculate_restoring_forces()
+
+        if rot_plot:
+            fig0.clear()
+            ax0 = fig0.add_subplot(projection='3d')
+            ax0 = PS.plot_forces(OFC.force_value(),ax0)
+            ax0.set_title(f'{r}')
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_force[0],net_force[1],net_force[2],
+                      length = 0.5, label ='Net Force', color='r')
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_moments[0],net_moments[1],net_moments[2],
+                      length = 5, label ='Net Moment', color='magenta')
+            ax0.quiver(COM[0],COM[1],COM[2],
+                      net_moments[0],net_moments[1],net_moments[2],
+                      length = 3.5, color='magenta')
+            ax0.legend()
+            ax0.set_xlim([0,1])
+            ax0.set_ylim([0,1])
+            ax0.set_zlim([-0.1,0.1])
+            ax0.set_aspect('equal')
+            fig0.tight_layout()
+            fig0.savefig(f'temp/rotation-{i}-{r:.1f}.jpg', dpi = 200, format = 'jpg')
+
+        PS.un_displace()
+
+        rotation_plot.append([r, *net_force, *net_moments])
 
 
-translation_plot= np.array(translation_plot)
-rotation_plot = np.array(rotation_plot)
-header = ['displacement', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Rz']
-pd.DataFrame(translation_plot,columns=header).to_csv(f"temp/translation_{stiffness_support=}.csv", header=True, index = False)
-pd.DataFrame(rotation_plot,columns=header).to_csv(f"temp/rotation_{stiffness_support=}.csv", header=True, index = False)
+    translation_plot= np.array(translation_plot)
+    rotation_plot = np.array(rotation_plot)
+    header = ['displacement', 'Fx', 'Fy', 'Fz', 'Rx', 'Ry', 'Rz']
+    pd.DataFrame(translation_plot,columns=header).to_csv(f"temp/translation_{stiffness_support=}.csv", header=True, index = False)
+    pd.DataFrame(rotation_plot,columns=header).to_csv(f"temp/rotation_{stiffness_support=}.csv", header=True, index = False)
 
 
 
 #%% Reproducing Fig. 4 from Gao et al 2022
 
-gao_et_al_figure_four = True
+gao_et_al_figure_four = False
 if gao_et_al_figure_four:
     fig = plt.figure(figsize=(10,6))
 
