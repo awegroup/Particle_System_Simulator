@@ -27,3 +27,6 @@ cython_debug/
 
 # Prevent sync of primary dumping ground
 temp/*
+
+# Pip install clutter
+LightSailSim.egg-info/*
