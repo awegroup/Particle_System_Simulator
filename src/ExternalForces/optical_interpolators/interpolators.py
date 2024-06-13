@@ -7,7 +7,7 @@ Created on Mon Mar  4 12:01:37 2024
 from typing import Callable
 import logging
 from functools import lru_cache
-
+import os.path
 
 import numpy as np
 import numpy.typing as npt
@@ -19,18 +19,21 @@ import matplotlib.pyplot as plt
 from src.particleSystem.ParticleSystem import ParticleSystem
 from src.ExternalForces.OpticalForceCalculator import wrap_spherical_coordinates
 
+# Setup path for abs. file imports
+my_path = os.path.abspath(os.path.dirname(__file__))
+
 PhC_library = {
-        'dummy':'src/ExternalForces/optical_interpolators/dummy.csv',
-        'Gao':'src/ExternalForces/optical_interpolators/PhC_Gao_et_al.csv',
-        'Mark_2':'src/ExternalForces/optical_interpolators/Mark_2_export.csv',
-        'Mark_3':'src/ExternalForces/optical_interpolators/Mark_3_export.csv',
-        'Mark_4':'src/ExternalForces/optical_interpolators/Mark_4_export.csv',
-        'Mark_4.1':'src/ExternalForces/optical_interpolators/Mark_4.1_export.csv',
-        'Mark_5':'src/ExternalForces/optical_interpolators/Mark_5_export.csv',
-        'Mark_6':'src/ExternalForces/optical_interpolators/Mark_6.csv',
-        'Mark_7':'src/ExternalForces/optical_interpolators/Mark_7_export.csv',
-        'Mark_8':'src/ExternalForces/optical_interpolators/Mark_8_export.csv',
-        'Mark_9':'src/ExternalForces/optical_interpolators/Mark_9_export.csv'
+        'dummy':'dummy.csv',
+        'Gao':'PhC_Gao_et_al.csv',
+        'Mark_2':'Mark_2_export.csv',
+        'Mark_3':'Mark_3_export.csv',
+        'Mark_4':'Mark_4_export.csv',
+        'Mark_4.1':'Mark_4.1_export.csv',
+        'Mark_5':'Mark_5_export.csv',
+        'Mark_6':'Mark_6.csv',
+        'Mark_7':'Mark_7_export.csv',
+        'Mark_8':'Mark_8_export.csv',
+        'Mark_9':'Mark_9_export.csv'
     }
 
 def create_interpolator_specular() -> Callable:
@@ -73,7 +76,8 @@ def create_interpolator(fname: str, rotation:float = 0)-> Callable:
         Interpolator for optical behaviour.
 
     """
-    data = np.loadtxt(fname, delimiter = ',',comments='#')
+    path = os.path.join(my_path, fname)
+    data = np.loadtxt(path, delimiter = ',',comments='#')
     incidence = data[:,:3]
     out = data[:,3:]
 
