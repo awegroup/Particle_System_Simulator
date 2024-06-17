@@ -1,6 +1,7 @@
 """
 Child Class 'SpringDamper', for spring-damper objects to be instantiated in ParticleSystem
-""" 
+"""
+
 from enum import Enum
 import numpy as np
 
@@ -11,7 +12,7 @@ from .Particle import Particle
 class SpringDamperType(Enum):
     """
     Enumeration representing the various types of SpringDamper objects.
-    
+
     Attributes
     ----------
     DEFAULT : str
@@ -20,40 +21,54 @@ class SpringDamperType(Enum):
         Represents a SpringDamper that cannot be compressed, only stretched.
     NONTENSILE : str
         Represents a SpringDamper that cannot be stretched, only compressed.
-    
+    NONCOMPRESSIVE_PULLEY : str
+        Represents a Special pulley SpringDamper that cannot be compressed, only stretched.
+    DEFAULT_ROTATIONAL : str
+        Represents a SpringDamper that is rotational in nature.
+
     Notes
     -----
     The SpringDamper type affects the initialization and behavior of the SpringDamper objects.
     Each type might have specific properties or behaviors associated with it in the SpringDamper class.
     """
+
     DEFAULT = "default"
     NONCOMPRESSIVE = "noncompressive"
     NONTENSILE = "nontensile"
-    PULLEY = "pulley"
-    WITH_ROTATIONAL_RESISTANCE = "with_rotational_resistance"
+    NONCOMPRESSIVE_PULLEY = "noncompressive_pulley"
+    DEFAULT_ROTATIONAL = "default_rotational"
+
 
 class SpringDamper(ImplicitForce):
     """
     #TODO one line summary
-    
-    
+
+
     Attributes: #TODO finish this
-        
+
     """
-    def __init__(self, p1: Particle, p2: Particle, k: float, c: float, linktype=SpringDamperType.DEFAULT):
+
+    def __init__(
+        self,
+        p1: Particle,
+        p2: Particle,
+        k: float,
+        c: float,
+        linktype=SpringDamperType.DEFAULT,
+    ):
         """Initializes the spring damper
-        
+
         Args:
-            p1, p2: 
+            p1, p2:
                 The two Particle instances to be connected
-            k: 
+            k:
                 A float representing the stiffness of the spring in N/m.
-            c: 
+            c:
                 A float representing the damping coefficient in Ns/m
             linktype:
                 A SpringDamperType enum representing the properties of the link
                 See SpringDamperType for more information
-                
+
         """
         super().__init__(p1, p2)
         self.__k = k
@@ -63,10 +78,12 @@ class SpringDamper(ImplicitForce):
         return
 
     def __str__(self):
-        return f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.l0}\n" \
-               f"Damping coefficient [N s/m]: {self.__c}\n" \
-               f"Assigned particles\n  p1: {self.p1}\n  p2: {self.p2}\n"\
-               f"Link type: {self.__linktype}"
+        return (
+            f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.l0}\n"
+            f"Damping coefficient [N s/m]: {self.__c}\n"
+            f"Assigned particles\n  p1: {self.p1}\n  p2: {self.p2}\n"
+            f"Link type: {self.__linktype}"
+        )
 
     def __relative_pos(self):
         return np.array([self.p1.x - self.p2.x])
@@ -74,25 +91,41 @@ class SpringDamper(ImplicitForce):
     def __relative_vel(self):
         return np.array([self.p1.v - self.p2.v])
 
-    def force_value(self):
+    def force_value(
+        self,
+        delta_rest_length: float = 0,
+    ):
         if self.__linktype == SpringDamperType.DEFAULT:
             return self.__calculate_f_spring() + self.__calculate_f_damping()
-        
+
         elif self.__linktype == SpringDamperType.NONCOMPRESSIVE:
             l = np.linalg.norm(self.__relative_pos())
-            if l >=self.l0:
-                return self.__calculate_f_spring() + self.__calculate_f_damping()
-            else:
-                return np.array([0, 0, 0])
-            
-        elif self.__linktype == SpringDamperType.NONTENSILE:
-            l = np.linalg.norm(self.__relative_pos())
-            if l <=self.l0:
+            if l >= self.l0:
                 return self.__calculate_f_spring() + self.__calculate_f_damping()
             else:
                 return np.array([0, 0, 0])
 
-    def __calculate_f_spring(self):
+        elif self.__linktype == SpringDamperType.NONTENSILE:
+            l = np.linalg.norm(self.__relative_pos())
+            if l <= self.l0:
+                return self.__calculate_f_spring() + self.__calculate_f_damping()
+            else:
+                return np.array([0, 0, 0])
+
+        elif self.__linktype == SpringDamperType.NONCOMPRESSIVE_PULLEY:
+            l = np.linalg.norm(self.__relative_pos())
+            if l >= self.l0:
+                return (
+                    self.__calculate_f_spring(delta_rest_length)
+                    + self.__calculate_f_damping()
+                )
+            else:
+                return np.array([0, 0, 0])
+
+    def __calculate_f_spring(
+        self,
+        delta_rest_length: float = 0,
+    ):
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
 
@@ -122,16 +155,10 @@ class SpringDamper(ImplicitForce):
         norm_pos = np.linalg.norm(relative_pos)
 
         # Using guard classes to return early in special cases
-        if (
-                self.__linktype == SpringDamperType.NONCOMPRESSIVE and
-                norm_pos <= self.__l0
-            ):
+        if self.__linktype == SpringDamperType.NONCOMPRESSIVE and norm_pos <= self.__l0:
             return np.zeros((3, 3)), np.zeros((3, 3))
-        
-        elif (
-                self.__linktype == SpringDamperType.NONTENSILE and
-                norm_pos >= self.__l0
-            ):
+
+        elif self.__linktype == SpringDamperType.NONTENSILE and norm_pos >= self.__l0:
             return np.zeros(3), np.zeros(3)
 
         if norm_pos != 0:
@@ -144,32 +171,32 @@ class SpringDamper(ImplicitForce):
         T = np.matmul(np.transpose(unit_vector), unit_vector)
         jx = -self.__k * ((self.l0 / norm_pos - 1) * (T - i) + T)
 
-        jv = -self.__c*i
+        jv = -self.__c * i
 
         return jx, jv
-    
+
     def line_segment(self):
         """Returns coordinate tuple of particles at either end of segment"""
         return (self.p1.x, self.p2.x)
-    
+
     @property
     def l(self):
         return np.linalg.norm(self.p1.x - self.p2.x)
-    
+
     @property
     def l0(self):
         return self.__l0
-    
+
     @l0.setter
-    def l0(self,value): # Exposed to enable self-stressing of mesh
+    def l0(self, value):  # Exposed to enable self-stressing of mesh
         self.__l0 = value
 
     @property
     def c(self):
         return self.__c
-    
+
     @c.setter
-    def c(self,value): # Exposed to enable resetting when using kinetic damping
+    def c(self, value):  # Exposed to enable resetting when using kinetic damping
         self.__c = value
 
 
@@ -180,7 +207,7 @@ if __name__ == "__main__":
     stiffness = 1e5
     damping = 10
     rest_length = 0
-    linktype = 'noncomp'
+    linktype = "noncomp"
 
     springdamper = SpringDamper(particle1, particle2, stiffness, damping)
 
