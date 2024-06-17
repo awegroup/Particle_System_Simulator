@@ -29,6 +29,8 @@ class SpringDamperType(Enum):
     DEFAULT = "default"
     NONCOMPRESSIVE = "noncompressive"
     NONTENSILE = "nontensile"
+    PULLEY = "pulley"
+    WITH_ROTATIONAL_RESISTANCE = "with_rotational_resistance"
 
 class SpringDamper(ImplicitForce):
     """
