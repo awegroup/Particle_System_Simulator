@@ -6,7 +6,7 @@ from typing import Callable
 
 import numpy as np
 import matplotlib.pyplot as plt
-from src.particleSystem.SystemObject import SystemObject
+from LightSailSim.particleSystem.SystemObject import SystemObject
 
 
 class LaserBeam(SystemObject):
@@ -23,7 +23,7 @@ class LaserBeam(SystemObject):
     """
     def __init__(self,
                  intensity_profile: Callable[[float, float], float],
-                 polarization_map: Callable[[float, float], list[np.complex_, np.complex_]]
+                 polarization_map: Callable[[float, float], list[np.complex128, np.complex128]]
                  ):
         """
         Initializes a laserbeam based on input parameters

@@ -1,8 +1,8 @@
 """
 Child Abstract Base Class 'ImplicitForce', for implicit force objects to be instantiated in ParticleSystem
 """
-from src.particleSystem.Force import Force
-from src.particleSystem.Particle import Particle
+from LightSailSim.particleSystem.Force import Force
+from LightSailSim.particleSystem.Particle import Particle
 from abc import abstractmethod
 from abc import abstractproperty
 

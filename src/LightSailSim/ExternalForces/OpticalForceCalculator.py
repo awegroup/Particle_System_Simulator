@@ -15,7 +15,7 @@ import numpy.typing as npt
 import scipy as sp
 from scipy.constants import c
 from scipy.spatial.transform import Rotation
-from src.particleSystem.Force import Force
+from LightSailSim.particleSystem.Force import Force
 import logging
 
 class OpticalForceCalculator(Force):
@@ -587,7 +587,7 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
 
 if __name__ == "__main__":
     from code_Validation.saddle_form import saddle_form
-    from src.ExternalForces.LaserBeam import LaserBeam
+    from LightSailSim.ExternalForces.LaserBeam import LaserBeam
     import matplotlib.pyplot as plt
 
 

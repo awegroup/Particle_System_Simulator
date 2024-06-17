@@ -14,9 +14,9 @@ sys.path.append(os.path.abspath('../..'))
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.particleSystem.ParticleSystem import ParticleSystem
-from src.Sim.simulations import Simulate_airbag
-import src.Mesh.mesh_functions as MF
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
+from LightSailSim.Sim.simulations import Simulate_airbag
+import LightSailSim.Mesh.mesh_functions as MF
 
 params = {
     # model parameters
