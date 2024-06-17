@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__
+*.py[cod]
+*$py.class
+*.pyc
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Cython debug symbols
+cython_debug/
+
+# Prevent sync of primary dumping ground
+temp/*
+
+# Pip install clutter
+LightSailSim.egg-info/*
