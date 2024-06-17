@@ -95,6 +95,18 @@ class SpringDamper(ImplicitForce):
         self,
         delta_rest_length: float = 0,
     ):
+        """Calculates the force exerted by the spring-damper on the particles it connects
+
+        Based on the linktype and stretched/compressed state, gives back zero-force
+        or calculates it accordingly using __calculate_f_spring and __calculate_f_damping
+
+        Args:
+            delta_rest_length:
+                A float representing the change (when it is a pulley) in rest length of the spring-damper
+
+        Returns:
+            A numpy array representing the force exerted by the spring-damper on the particles it connects
+        """
         if self.__linktype == SpringDamperType.DEFAULT:
             return self.__calculate_f_spring() + self.__calculate_f_damping()
 
@@ -126,6 +138,15 @@ class SpringDamper(ImplicitForce):
         self,
         delta_rest_length: float = 0,
     ):
+        """Calculates the spring force exerted by the spring-damper on the particles it connects
+
+        Args:
+            delta_rest_length:
+                A float representing the change (when it is a pulley) in rest length of the spring-damper
+
+        Returns:
+            A numpy array representing the spring force exerted by the spring-damper on the particles it connects
+        """
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
 
@@ -134,10 +155,11 @@ class SpringDamper(ImplicitForce):
         else:
             unit_vector = np.array([0, 0, 0])
 
-        f_spring = -self.__k * (norm_pos - self.l0) * unit_vector
+        f_spring = -self.__k * (norm_pos + delta_rest_length - self.l0) * unit_vector
         return np.squeeze(f_spring)
 
     def __calculate_f_damping(self):
+        # TODO: does not treat pulleys differently, implement
         relative_pos = self.__relative_pos()
         relative_vel = np.squeeze(self.__relative_vel())
         norm_pos = np.linalg.norm(relative_pos)
