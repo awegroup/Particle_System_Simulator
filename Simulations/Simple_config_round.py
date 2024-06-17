@@ -168,7 +168,7 @@ shrink_factor = 1/(1+pre_strain)
 PS.stress_self(shrink_factor)
 
 #Adding dummy mass values for support:!
-width_support = 17e-6 # [m] should be 30e-6, but using 5 for comparsison with previous
+width_support = 17e-6 # [m]
 mean_circ_ring = (radius - width_support/2)*np.pi*2
 m_support = width_support**2 * mean_circ_ring*density_ring
 m = sum([p.m for p in PS.particles])
