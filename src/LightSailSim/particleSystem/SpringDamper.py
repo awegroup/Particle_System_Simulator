@@ -102,7 +102,7 @@ class SpringDamper(ImplicitForce):
 
         Args:
             delta_rest_length:
-                A float representing the change (when it is a pulley) in rest length of the spring-damper
+                A float representing the change in rest length of the spring-damper (for pulleys or actuation)
 
         Returns:
             A numpy array representing the force exerted by the spring-damper on the particles it connects
@@ -138,15 +138,7 @@ class SpringDamper(ImplicitForce):
         self,
         delta_rest_length: float = 0,
     ):
-        """Calculates the spring force exerted by the spring-damper on the particles it connects
-
-        Args:
-            delta_rest_length:
-                A float representing the change (when it is a pulley) in rest length of the spring-damper
-
-        Returns:
-            A numpy array representing the spring force exerted by the spring-damper on the particles it connects
-        """
+        """Calculates the spring force exerted by the spring-damper on the particles it connects"""
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
 
@@ -196,6 +188,10 @@ class SpringDamper(ImplicitForce):
         jv = -self.__c * i
 
         return jx, jv
+
+    def update_rest_length(self, delta_rest_length: float = 0):
+        """Updates the rest length of the spring damper, to allow actuation mid-simulation"""
+        self.__l0 += delta_rest_length
 
     def line_segment(self):
         """Returns coordinate tuple of particles at either end of segment"""
