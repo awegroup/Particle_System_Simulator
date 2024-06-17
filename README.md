@@ -1,4 +1,5 @@
 # LightSailSim: Lightsail Design and Simulation Tool
+[![Python package testing](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml)
 ![nicegif](images/SchmancyGauss.gif)
 This repository features a set of tools for analysing the deformation of membranes using a particle system model.  
 
