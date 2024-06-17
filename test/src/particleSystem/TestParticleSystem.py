@@ -32,9 +32,8 @@ class TestParticleSystem(unittest.TestCase):
             "convergence_threshold": 1e-4, # [-]
             "min_iterations": 10, # [-]
             }
-        self.initial_conditions, self.connectivity_matrix = MF.mesh_square(1, 1, 0.02, self.params)
-        self.PS = ParticleSystem(self.connectivity_matrix, 
-                                  self.initial_conditions, 
+        mesh = MF.mesh_square(1, 1, 0.02, self.params)
+        self.PS = ParticleSystem(*mesh, 
                                   self.params,
                                   clean_particles = False)
         
