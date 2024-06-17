@@ -16,8 +16,8 @@ from scipy.interpolate import griddata
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 
-from src.particleSystem.ParticleSystem import ParticleSystem
-from src.ExternalForces.OpticalForceCalculator import wrap_spherical_coordinates
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
+from LightSailSim.ExternalForces.OpticalForceCalculator import wrap_spherical_coordinates
 
 # Setup path for abs. file imports
 my_path = os.path.abspath(os.path.dirname(__file__))

@@ -100,9 +100,9 @@ class Ellipse(Geometry):
 
 
 if __name__ == '__main__':
-    from src.particleSystem.Particle import Particle
-    from src.particleSystem.SpringDamper import SpringDamper 
-    from src.particleSystem.ParticleSystem import ParticleSystem
+    from LightSailSim.particleSystem.Particle import Particle
+    from LightSailSim.particleSystem.SpringDamper import SpringDamper 
+    from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
     
     mesh = Mesher()
     mesh.add_rectangle(0, 0, 'square')

@@ -6,7 +6,7 @@ import code_Validation.saddle_form.saddle_form_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
-from src.particleSystem.ParticleSystem import ParticleSystem
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
 
 
 def instantiate_ps():

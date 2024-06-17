@@ -11,9 +11,9 @@ import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.particleSystem.ParticleSystem import ParticleSystem 
-from src.Sim.simulations import Simulate_1d_Stretch
-import src.Mesh.mesh_functions as MF
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem 
+from LightSailSim.Sim.simulations import Simulate_1d_Stretch
+import LightSailSim.Mesh.mesh_functions as MF
 
 class AnalyseMaterial():
     def __init__(self):

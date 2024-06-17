@@ -9,12 +9,12 @@ import logging
 
 import numpy as np
 
-from src.particleSystem.ParticleSystem import ParticleSystem 
-from src.ExternalForces.OpticalForceCalculator import OpticalForceCalculator, ParticleOpticalPropertyType
-from src.ExternalForces.LaserBeam import LaserBeam
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem 
+from LightSailSim.ExternalForces.OpticalForceCalculator import OpticalForceCalculator, ParticleOpticalPropertyType
+from LightSailSim.ExternalForces.LaserBeam import LaserBeam
 from scipy.constants import c
 from scipy.spatial.transform import Rotation
-import src.Mesh.mesh_functions as MF
+import LightSailSim.Mesh.mesh_functions as MF
 
 class TestOpticalForceCalculator(unittest.TestCase):
     def setUp(self):

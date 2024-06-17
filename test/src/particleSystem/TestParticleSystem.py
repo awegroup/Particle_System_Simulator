@@ -9,10 +9,10 @@ import logging
 
 import numpy as np
 
-from src.particleSystem.ParticleSystem import ParticleSystem 
-from src.Sim.simulations import SimulateTripleChainWithMass
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem 
+from LightSailSim.Sim.simulations import SimulateTripleChainWithMass
 from scipy.spatial.transform import Rotation
-import src.Mesh.mesh_functions as MF
+import LightSailSim.Mesh.mesh_functions as MF
 
 class TestParticleSystem(unittest.TestCase):
     def setUp(self):

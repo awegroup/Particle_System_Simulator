@@ -8,13 +8,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import c
 
-from src.particleSystem.ParticleSystem import ParticleSystem
-from src.Sim.simulations import Simulate_Lightsail
-import src.Mesh.mesh_functions as MF
-import src.ExternalForces.optical_interpolators.interpolators as interp
-from src.ExternalForces.LaserBeam import LaserBeam
-from src.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
-from src.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
+from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
+from LightSailSim.Sim.simulations import Simulate_Lightsail
+import LightSailSim.Mesh.mesh_functions as MF
+import LightSailSim.ExternalForces.optical_interpolators.interpolators as interp
+from LightSailSim.ExternalForces.LaserBeam import LaserBeam
+from LightSailSim.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
+from LightSailSim.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
 
 global_start_time = time.time()
 
