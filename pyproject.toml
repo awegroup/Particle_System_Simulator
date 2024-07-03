@@ -44,4 +44,4 @@ Repository = "https://github.com/Markk116/LightSailSim/tree/main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-LightSailSim = ["*.csv"]
+LightSailSim = ["ExternalForces/optical_interpolators/*.csv"]
