@@ -5,7 +5,10 @@ ParticleSystem framework
 
 import logging
 
-import numpy as np
+# import numpy as np
+import jax
+import jax.numpy as np
+
 import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
 import scipy.sparse as sps
@@ -393,6 +396,18 @@ class ParticleSystem:
             self.__f[j * 3 : j * 3 + 3] -= f_int
 
         return self.__f
+
+    @jax.jit
+    def force_calculation(self):
+        def single_force(self, idx):
+            f_int = self.__springdampers[idx].force_value()
+            i, j, *_ = self.__connectivity_matrix[idx]
+
+            self.__f[i * 3 : i * 3 + 3] += f_int
+            self.__f[j * 3 : j * 3 + 3] -= f_int
+            return self.__f
+
+        return jax.vmap(single_force)(np.arange(len(self.__springdampers)))
 
     # def __system_jacobians(self):
     #     self.__jx[self.__jx != 0] = 0

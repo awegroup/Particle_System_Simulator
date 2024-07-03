@@ -3,7 +3,10 @@ Child Class 'SpringDamper', for spring-damper objects to be instantiated in Part
 """
 
 from enum import Enum
-import numpy as np
+
+# import numpy as np
+import jax
+import jax.numpy as np
 
 from .ImplicitForce import ImplicitForce
 from .Particle import Particle
