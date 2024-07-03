@@ -39,3 +39,9 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/Markk116/LightSailSim/tree/main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+LightSailSim = ["**/*.csv"]
