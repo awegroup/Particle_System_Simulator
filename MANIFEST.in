@@ -1,2 +1,1 @@
-include src/LightSailSim/ExternalForces/optical_interpolators/*.csv
 include README.md
