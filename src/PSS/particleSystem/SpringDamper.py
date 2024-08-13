@@ -120,25 +120,6 @@ class SpringDamper(ImplicitForce):
         f_damping = -self.__c * np.dot(relative_vel, unit_vector) * unit_vector
         return np.squeeze(f_damping)
 
-    # TODO: OLD LSS Method
-    # def force_value(self):
-    #     if self.__linktype == SpringDamperType.DEFAULT:
-    #         return self.__calculate_f_spring() + self.__calculate_f_damping()
-
-    #     elif self.__linktype == SpringDamperType.NONCOMPRESSIVE:
-    #         l = np.linalg.norm(self.__relative_pos())
-    #         if l >= self.l0:
-    #             return self.__calculate_f_spring() + self.__calculate_f_damping()
-    #         else:
-    #             return np.array([0, 0, 0])
-
-    #     elif self.__linktype == SpringDamperType.NONTENSILE:
-    #         l = np.linalg.norm(self.__relative_pos())
-    #         if l <= self.l0:
-    #             return self.__calculate_f_spring() + self.__calculate_f_damping()
-    #         else:
-    #             return np.array([0, 0, 0])
-
     def force_value(self, delta_length_pulley_other_line: float = 0):
         if self.__linktype == SpringDamperType.DEFAULT:
             return self.__calculate_f_spring() + self.__calculate_f_damping()

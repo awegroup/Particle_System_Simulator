@@ -436,7 +436,9 @@ class ParticleSystem:
                 p4 = np.array([x_current[int(idx_p4) * 3 : int(idx_p4) * 3 + 3]])
                 norm_p3p4 = np.linalg.norm(p3 - p4)
                 delta_length_pulley_other_line = norm_p3p4 - rest_length_p3p4
-                f_int = link.force_value(delta_length_pulley_other_line)
+                f_int = np.array(
+                    link.force_value(delta_length_pulley_other_line), dtype=np.float64
+                )
 
                 i, j, *_ = self.__connectivity_matrix[idx]
                 self.__f[i * 3 : i * 3 + 3] += f_int
@@ -444,7 +446,7 @@ class ParticleSystem:
 
             # if regular spring-damper
             else:
-                f_int = self.__springdampers[idx].force_value()
+                f_int = np.array(link.force_value(), dtype=np.float64)
                 i, j, *_ = self.__connectivity_matrix[idx]
                 self.__f[i * 3 : i * 3 + 3] += f_int
                 self.__f[j * 3 : j * 3 + 3] -= f_int
