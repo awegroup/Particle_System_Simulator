@@ -7,7 +7,7 @@ import saddle_form_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
-from Particle_System_Simulator.particleSystem import ParticleSystem
+from PSS.particleSystem import ParticleSystem
 
 
 def instantiate_ps():

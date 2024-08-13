@@ -2,7 +2,7 @@
 Child Abstract Base Class 'Force', for force objects to be instantiated in ParticleSystem
 """
 
-from Particle_System_Simulator.particleSystem.SystemObject import SystemObject
+from PSS.particleSystem.SystemObject import SystemObject
 from abc import abstractmethod
 
 

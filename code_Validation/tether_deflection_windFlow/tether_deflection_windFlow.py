@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 import time
-from Particle_System_Simulator.particleSystem import ParticleSystem
+from PSS.particleSystem import ParticleSystem
 
 
 def instantiate_ps():

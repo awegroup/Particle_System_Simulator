@@ -16,8 +16,8 @@ from scipy.interpolate import griddata
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
-from Particle_System_Simulator.ExternalForces.OpticalForceCalculator import (
+from PSS.particleSystem.ParticleSystem import ParticleSystem
+from PSS.ExternalForces.OpticalForceCalculator import (
     wrap_spherical_coordinates,
 )
 

@@ -55,9 +55,9 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Particle_System_Simulator.particleSystem import ParticleSystem
-from Particle_System_Simulator.Sim.simulations import Simulate_airbag
-import Particle_System_Simulator.Mesh.mesh_functions as MF
+from PSS.particleSystem import ParticleSystem
+from PSS.Sim.simulations import Simulate_airbag
+import PSS.Mesh.mesh_functions as MF
 
 curve_fitting_parameters = {
     "125": {"A1/s": 1.094e-02, "A2/s": 1.630e-04, "A1/r": 6.462e-03, "A2/r": 9.490e-05},

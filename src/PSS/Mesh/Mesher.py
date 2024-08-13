@@ -91,9 +91,9 @@ class Ellipse(Geometry):
 
 
 if __name__ == "__main__":
-    from Particle_System_Simulator.particleSystem.Particle import Particle
-    from Particle_System_Simulator.particleSystem.SpringDamper import SpringDamper
-    from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+    from PSS.particleSystem.Particle import Particle
+    from PSS.particleSystem.SpringDamper import SpringDamper
+    from PSS.particleSystem.ParticleSystem import ParticleSystem
 
     mesh = Mesher()
     mesh.add_rectangle(0, 0, "square")

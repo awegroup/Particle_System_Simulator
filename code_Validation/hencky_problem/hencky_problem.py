@@ -7,7 +7,7 @@ import hencky_problem_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+from PSS.particleSystem.ParticleSystem import ParticleSystem
 
 
 def instantiate_ps():

@@ -11,9 +11,9 @@ import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
-from Particle_System_Simulator.Sim.simulations import Simulate_1d_Stretch
-import Particle_System_Simulator.Mesh.mesh_functions as MF
+from PSS.particleSystem.ParticleSystem import ParticleSystem
+from PSS.Sim.simulations import Simulate_1d_Stretch
+import PSS.Mesh.mesh_functions as MF
 
 
 class AnalyseMaterial:

@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.integrate import solve_ivp
 import sys
-from Particle_System_Simulator.particleSystem import ParticleSystem
-from Particle_System_Simulator.AnalysisModules import system_energy
+from PSS.particleSystem import ParticleSystem
+from PSS.AnalysisModules import system_energy
 
 
 def instantiate_ps():

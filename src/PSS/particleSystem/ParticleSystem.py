@@ -419,14 +419,14 @@ class ParticleSystem:
                 delta_length_pulley_other_line = norm_p3p4 - rest_length_p3p4
                 f_int = SD.force_value(delta_length_pulley_other_line)
 
-                i, j = self.__connectivity_matrix[idx]
+                i, j, *_ = self.__connectivity_matrix[idx]
                 self.__f[i * 3 : i * 3 + 3] += f_int
                 self.__f[j * 3 : j * 3 + 3] -= f_int
 
             # if regular spring-damper
             else:
                 f_int = self.__springdampers[idx].force_value()
-                i, j = self.__connectivity_matrix[idx]
+                i, j, *_ = self.__connectivity_matrix[idx]
                 self.__f[i * 3 : i * 3 + 3] += f_int
                 self.__f[j * 3 : j * 3 + 3] -= f_int
 

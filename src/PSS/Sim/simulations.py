@@ -15,8 +15,8 @@ import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
-from Particle_System_Simulator.Mesh import mesh_functions as MF
+from PSS.particleSystem.ParticleSystem import ParticleSystem
+from PSS.Mesh import mesh_functions as MF
 
 
 class Simulate:

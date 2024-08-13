@@ -7,7 +7,7 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+from PSS.particleSystem.ParticleSystem import ParticleSystem
 
 
 def connectivity_matrix():

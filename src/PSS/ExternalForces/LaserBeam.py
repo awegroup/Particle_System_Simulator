@@ -6,7 +6,7 @@ from typing import Callable
 
 import numpy as np
 import matplotlib.pyplot as plt
-from Particle_System_Simulator.particleSystem.SystemObject import SystemObject
+from PSS.particleSystem.SystemObject import SystemObject
 
 
 class LaserBeam(SystemObject):

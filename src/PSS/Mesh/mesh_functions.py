@@ -7,7 +7,7 @@ Created on Fri Dec  15 12:27:53 2023
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from Particle_System_Simulator.particleSystem.SpringDamper import SpringDamperType
+from PSS.particleSystem.SpringDamper import SpringDamperType
 
 
 params = {
@@ -618,7 +618,7 @@ def ps_find_strip_dimentions(ParticleSystem, midstrip):
 
 
 if __name__ == "__main__":
-    from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+    from PSS.particleSystem.ParticleSystem import ParticleSystem
     import matplotlib.pyplot as plt
 
     params = {
