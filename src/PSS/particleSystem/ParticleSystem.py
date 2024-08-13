@@ -418,7 +418,8 @@ class ParticleSystem:
     #     return self.__f
 
     def __one_d_force_vector(self):
-        self.__f[self.__f != 0] = 0
+        # enforcing the same dtype as the f vector, to avoid errors
+        self.__f = np.zeros(self.__f.shape, dtype=np.float64)
 
         # calling this once, instead of for each springdamper
         x_current = self.__pack_x_current()
