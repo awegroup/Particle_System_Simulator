@@ -58,7 +58,7 @@ edge_length = half_width / n_segments
 initial_conditions, connections = MF.mesh_airbag_square_cross(
     half_width, mesh_edge_length=edge_length, params=params, noncompressive=True
 )
-PS = ParticleSystem(connections, initial_conditions, params)
+PS = ParticleSystem(connections, initial_conditions, params, clean_particles=True)
 
 Sim = Simulate_airbag(PS, params)
 

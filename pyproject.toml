@@ -14,13 +14,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Particle_System_Simulator"
 version = "0.1.0"
-dependencies = [
-"numpy",
-"pandas",
-"matplotlib",
-"scipy",
-]
-
+readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.8"
 authors = [
 {name = "Mark Kalsbeek, Jelle Poland, Alexander Batchelor"},
@@ -28,13 +23,30 @@ authors = [
 maintainers = [
 {name = "Mark Kalsbeek, Jelle Poland"}
 ]
-description = "LightSailSim"
-readme = "README.md"
 keywords = ["Membrane Analysis", "Particle Systems", "Lightsail", "Kite", "Tensile Structures"] # Add your desired keywords here
+
 classifiers = [
 "Development Status :: 3 - Alpha",
 "Programming Language :: Python",
+"License :: OSI Approved :: MIT License",
 ]
+
+dependencies = [
+"numpy",
+"pandas",
+"matplotlib",
+"scipy",
+"sympy",
+"ipykernel",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "black",
+  ]
+
 
 [project.urls]
 Repository = "https://github.com/awegroup/Particle_System_Simulator"

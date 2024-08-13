@@ -55,7 +55,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+from Particle_System_Simulator.particleSystem import ParticleSystem
 from Particle_System_Simulator.Sim.simulations import Simulate_airbag
 import Particle_System_Simulator.Mesh.mesh_functions as MF
 

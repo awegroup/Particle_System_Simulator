@@ -3,11 +3,11 @@ Script for PS framework validation, benchmark case where saddle form of self str
 """
 
 import numpy as np
-import code_Validation.saddle_form.saddle_form_input as input
+import saddle_form_input as input
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
-from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+from Particle_System_Simulator.particleSystem import ParticleSystem
 
 
 def instantiate_ps():

@@ -4,7 +4,6 @@ ParticleSystem framework
 """
 
 import logging
-
 import numpy as np
 import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
@@ -13,6 +12,7 @@ from scipy.spatial import Delaunay
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
+import copy
 
 from .Particle import Particle
 from .SpringDamper import SpringDamper
@@ -61,6 +61,13 @@ class ParticleSystem:
         self.__rtol = sim_param["rel_tol"]
         self.__atol = sim_param["abs_tol"]
         self.__maxiter = int(sim_param["max_iter"])
+
+        ## Dealing with the occurence of pulleys
+        if "pulley_other_line_pair" in sim_param:
+            # copy.deepcopy is used, because np.copy only works for np.arrays -this must remain an dict
+            self.__pulley_other_line_pair = copy.deepcopy(
+                sim_param["pulley_other_line_pair"]
+            )
 
         # allocate memory
         self.__particles = []
@@ -126,6 +133,7 @@ class ParticleSystem:
             link = link.copy()  # needed to not override the __connectivity_matrix
             link[0] = self.__particles[link[0]]
             link[1] = self.__particles[link[1]]
+            # SpringDamper takes in (p1, p2, k, c, linktype="default")
             SD = SpringDamper(*link)
             self.__springdampers.append(SD)
             link[0].connections.append(SD)
@@ -377,16 +385,50 @@ class ParticleSystem:
     def __pack_x_current(self):
         return np.array([particle.x for particle in self.__particles]).flatten()
 
+    # TODO: this commented out is the old version, which can not deal with pulleys
+    # def __one_d_force_vector(self):
+    #     # self.__f[self.__f != 0] = 0
+    #     self.__f = np.zeros(self.__f.shape, dtype=np.float64)
+
+    #     for n in range(len(self.__springdampers)):
+    #         f_int = self.__springdampers[n].force_value()
+    #         i, j, *_ = self.__connectivity_matrix[n]
+
+    #         self.__f[i * 3 : i * 3 + 3] += f_int
+    #         self.__f[j * 3 : j * 3 + 3] -= f_int
+
+    #     return self.__f
+
     def __one_d_force_vector(self):
-        # self.__f[self.__f != 0] = 0
-        self.__f = np.zeros(self.__f.shape, dtype=np.float64)
+        self.__f[self.__f != 0] = 0
 
-        for n in range(len(self.__springdampers)):
-            f_int = self.__springdampers[n].force_value()
-            i, j, *_ = self.__connectivity_matrix[n]
+        # calling this once, instead of for each springdamper
+        x_current = self.__pack_x_current()
+        # print(f"len(x_current): {len(x_current)} ")
 
-            self.__f[i * 3 : i * 3 + 3] += f_int
-            self.__f[j * 3 : j * 3 + 3] -= f_int
+        for idx, SD in enumerate(self.__springdampers):
+            # if pulley
+            if SD.linktype == "pulley":
+                idx_p3, idx_p4, rest_length_p3p4 = self.__pulley_other_line_pair[
+                    str(idx)
+                ]
+                # points are flat, so we need to configure a bit
+                p3 = np.array([x_current[int(idx_p3) * 3 : int(idx_p3) * 3 + 3]])
+                p4 = np.array([x_current[int(idx_p4) * 3 : int(idx_p4) * 3 + 3]])
+                norm_p3p4 = np.linalg.norm(p3 - p4)
+                delta_length_pulley_other_line = norm_p3p4 - rest_length_p3p4
+                f_int = SD.force_value(delta_length_pulley_other_line)
+
+                i, j = self.__connectivity_matrix[idx]
+                self.__f[i * 3 : i * 3 + 3] += f_int
+                self.__f[j * 3 : j * 3 + 3] -= f_int
+
+            # if regular spring-damper
+            else:
+                f_int = self.__springdampers[idx].force_value()
+                i, j = self.__connectivity_matrix[idx]
+                self.__f[i * 3 : i * 3 + 3] += f_int
+                self.__f[j * 3 : j * 3 + 3] -= f_int
 
         return self.__f
 

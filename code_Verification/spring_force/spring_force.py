@@ -3,18 +3,56 @@ Script for verification of correct implementation spring force of SpringDamper o
 """
 
 import numpy as np
-import input_spring_force as input
 import numpy.typing as npt
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
-from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
+from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+
+
+def connectivity_matrix():
+    matrix = [[0, 1]]
+    return matrix
+
+
+def initial_conditions():
+    conditions = [[[0, 0, 0], [0, 0, 0], 1, True], [[0, 0, 1], [0, 0, 0], 1, False]]
+    return conditions
+
+
+def element_parameters(k, l0, c):
+    e_m = [[k, l0, c]]
+    return e_m
 
 
 def instantiate_ps():
-    return ParticleSystem(
-        input.c_matrix, input.init_cond, input.elem_params, input.params
-    )
+
+    # dictionary of required parameters
+    params = {
+        # model parameters
+        "n": 2,  # [-] number of particles
+        "k": 2e4,  # [N/m] spring stiffness
+        "c": 0,  # [N s/m] damping coefficient
+        "L": 0,  # [m] tether length
+        # simulation settings
+        "dt": 0.001,  # [s] simulation timestep
+        "t_steps": 1000,  # [-] number of simulated time steps
+        "abs_tol": 1e-50,  # [m/s] absolute error tolerance iterative solver
+        "rel_tol": 1e-5,  # [-] relative error tolerance iterative solver
+        "max_iter": 1e5,  # [-] maximum number of iterations
+        # physical parameters
+        "g": 9.81,  # [m/s^2] gravitational acceleration
+    }
+    # calculated parameters
+    params["l0"] = params["L"] / (params["n"] - 1)
+
+    # instantiate connectivity matrix and initial conditions array
+    c_matrix = connectivity_matrix()
+    init_cond = initial_conditions()
+    elem_params = element_parameters(params["k"], params["l0"], params["c"])
+
+    # instantiate ParticleSystem object
+    return ParticleSystem(c_matrix, init_cond, params)
 
 
 def exact_solution(t_vector: npt.ArrayLike):  # analytical solution for this test case
