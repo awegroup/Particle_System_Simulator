@@ -546,7 +546,7 @@ def ps_find_strip_dimentions(ParticleSystem, midstrip):
     return point_to_point_range
 
 if __name__ == '__main__':
-    from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
+    from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
     import matplotlib.pyplot as plt
     params = {
         # model parameters

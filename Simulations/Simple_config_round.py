@@ -19,13 +19,13 @@ from scipy.constants import c
 from scipy.interpolate import griddata
 from scipy.interpolate import interp1d
 
-from LightSailSim.particleSystem.ParticleSystem import ParticleSystem
-from LightSailSim.Sim.simulations import Simulate_Lightsail
-import LightSailSim.Mesh.mesh_functions as MF
-import LightSailSim.ExternalForces.optical_interpolators.interpolators as interp
-from LightSailSim.ExternalForces.LaserBeam import LaserBeam
-from LightSailSim.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
-from LightSailSim.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
+from Particle_System_Simulator.particleSystem.ParticleSystem import ParticleSystem
+from Particle_System_Simulator.Sim.simulations import Simulate_Lightsail
+import Particle_System_Simulator.Mesh.mesh_functions as MF
+import Particle_System_Simulator.ExternalForces.optical_interpolators.interpolators as interp
+from Particle_System_Simulator.ExternalForces.LaserBeam import LaserBeam
+from Particle_System_Simulator.ExternalForces.OpticalForceCalculator import OpticalForceCalculator
+from Particle_System_Simulator.ExternalForces.OpticalForceCalculator import ParticleOpticalPropertyType
 
 
 
