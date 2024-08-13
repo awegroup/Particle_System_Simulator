@@ -172,6 +172,24 @@ class ParticleSystem:
 
         return
 
+    def update_rest_length(self, idx: int, delta_rest_length: float):
+        """Update rest length of a specific spring damper, needed for actuation
+
+        Args:
+            idx: index of the spring damper to be updated
+            delta_rest_length: the change in rest length
+
+        Returns:
+            None
+        """
+        self.springdampers[idx].l0 += delta_rest_length
+        return
+
+    # if this is not a property, you are not getting back a list of value but object-type data
+    @property
+    def extract_rest_length(self):
+        return np.array([link.l0 for link in self.__springdampers])
+
     def __construct_m_matrix(self):
         matrix = np.zeros((self.__n * 3, self.__n * 3))
 
@@ -406,9 +424,9 @@ class ParticleSystem:
         x_current = self.__pack_x_current()
         # print(f"len(x_current): {len(x_current)} ")
 
-        for idx, SD in enumerate(self.__springdampers):
+        for idx, link in enumerate(self.__springdampers):
             # if pulley
-            if SD.linktype == "pulley":
+            if link.linktype == "pulley":
                 idx_p3, idx_p4, rest_length_p3p4 = self.__pulley_other_line_pair[
                     str(idx)
                 ]
@@ -417,7 +435,7 @@ class ParticleSystem:
                 p4 = np.array([x_current[int(idx_p4) * 3 : int(idx_p4) * 3 + 3]])
                 norm_p3p4 = np.linalg.norm(p3 - p4)
                 delta_length_pulley_other_line = norm_p3p4 - rest_length_p3p4
-                f_int = SD.force_value(delta_length_pulley_other_line)
+                f_int = link.force_value(delta_length_pulley_other_line)
 
                 i, j, *_ = self.__connectivity_matrix[idx]
                 self.__f[i * 3 : i * 3 + 3] += f_int
@@ -547,6 +565,19 @@ class ParticleSystem:
     @property
     def kinetic_energy(self):
         return self.__calc_kin_energy()
+
+    @property
+    def f(self):
+        """Returns the internal forces acting on the particles,
+        These are not stripped from the fixed particles
+        those values can be found by calling f_int instead
+
+        Args:
+            None
+        Returns:
+            np.ndarray: 1D array of forces acting on the particles
+        """
+        return self.__f
 
     @property
     def f_int(self):

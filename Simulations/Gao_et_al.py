@@ -103,6 +103,7 @@ for i in range((n_segments + 1) ** 2):
 
 # init particle system
 PS = ParticleSystem(*mesh, params, clean_particles=False)
+
 starting_postions = PS.x_v_current_3D[0]
 # Setup the optical sytem
 I_0 = 100e9 / (10 * 10)
