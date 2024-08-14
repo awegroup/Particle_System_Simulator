@@ -239,8 +239,9 @@ class ParticleSystem:
             f_external = np.zeros(
                 self.__n * 3,
             )
-
+        logging.debug(f"current f_ext: {f_external}")
         f = self.__one_d_force_vector() + f_external
+        logging.debug(f"Current force (f_one_d + f_ext): {f}")
 
         v_current = self.__pack_v_current()
         x_current = self.__pack_x_current()
@@ -356,7 +357,11 @@ class ParticleSystem:
 
         if len(f_ext):  # condition checking if an f_ext is passed as argument
             self.__save_state()
+            logging.debug(f"External force is applied")
+            logging.debug(f"Current x: {self.__pack_x_current()}")
             x_next, v_next = self.simulate(f_ext)
+            logging.debug(f"Next x: {x_next}")
+
         else:
             self.__save_state()
             x_next, v_next = self.simulate()
@@ -423,7 +428,6 @@ class ParticleSystem:
 
         # calling this once, instead of for each springdamper
         x_current = self.__pack_x_current()
-        # print(f"len(x_current): {len(x_current)} ")
 
         for idx, link in enumerate(self.__springdampers):
             # if pulley
@@ -440,16 +444,16 @@ class ParticleSystem:
                     link.force_value(delta_length_pulley_other_line), dtype=np.float64
                 )
 
-                i, j, *_ = self.__connectivity_matrix[idx]
-                self.__f[i * 3 : i * 3 + 3] += f_int
-                self.__f[j * 3 : j * 3 + 3] -= f_int
-
             # if regular spring-damper
             else:
                 f_int = np.array(link.force_value(), dtype=np.float64)
-                i, j, *_ = self.__connectivity_matrix[idx]
-                self.__f[i * 3 : i * 3 + 3] += f_int
-                self.__f[j * 3 : j * 3 + 3] -= f_int
+
+            logging.debug(f"Force acting on {link.linktype} SD {idx}: {f_int}")
+
+            # applying the forces to the particles
+            i, j, *_ = self.__connectivity_matrix[idx]
+            self.__f[i * 3 : i * 3 + 3] += f_int
+            self.__f[j * 3 : j * 3 + 3] -= f_int
 
         return self.__f
 

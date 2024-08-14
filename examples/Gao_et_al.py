@@ -19,6 +19,7 @@ from PSS.ExternalForces.OpticalForceCalculator import (
 from PSS.ExternalForces.OpticalForceCalculator import (
     ParticleOpticalPropertyType,
 )
+from PSS.logging_config import *
 
 global_start_time = time.time()
 

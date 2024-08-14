@@ -38,6 +38,8 @@ dependencies = [
 "scipy",
 "sympy",
 "ipykernel",
+"dill",
+"attrs",
 ]
 
 [project.optional-dependencies]
