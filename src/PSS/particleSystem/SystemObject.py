@@ -1,6 +1,7 @@
 """
 Parent Abstract Base Class 'SystemObject', for objects to be instantiated in ParticleSystem
 """
+
 from abc import ABC
 
 

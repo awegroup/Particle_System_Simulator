@@ -6,10 +6,10 @@ ParticleSystem framework
 import logging
 
 import logging
+
+# import jax
+# import jax.numpy as np
 import numpy as np
-# import numpy as np
-import jax
-import jax.numpy as np
 
 import numpy.typing as npt
 from scipy.sparse.linalg import bicgstab
@@ -24,16 +24,8 @@ from .Particle import Particle
 from .SpringDamper import SpringDamper
 
 
-
 class ParticleSystem:
-    def __init__(
-        self,
-        connectivity_matrix: list,
-        initial_conditions: npt.ArrayLike,
-        sim_param: dict,
-        clean_particles: bool = True,
-        init_surface=True,
-    ):
+
     def __init__(
         self,
         connectivity_matrix: list,
@@ -149,7 +141,6 @@ class ParticleSystem:
             m = set_of_initial_cond[2]
             f = set_of_initial_cond[3]
             if f and len(set_of_initial_cond) >= 5:
-            if f and len(set_of_initial_cond) >= 5:
                 con = set_of_initial_cond[4]
                 con_t = set_of_initial_cond[5]
                 self.__particles.append(Particle(x, v, m, f, con, con_t))
@@ -223,6 +214,7 @@ class ParticleSystem:
     @property
     def extract_rest_length(self):
         return np.array([link.l0 for link in self.__springdampers])
+
     def extract_rest_length(self):
         """Extracts the rest lengths of the springdampers"""
         return np.array([springdamper.l0 for springdamper in self.__springdampers])
@@ -328,16 +320,13 @@ class ParticleSystem:
                     line_mask.append(True)
                 constraint = p._Particle__constraint[0]
                 if constraint[0] == 1:
-                if constraint[0] == 1:
                     plane_mask.append(False)
                     plane_mask.append(True)
                     plane_mask.append(True)
                 elif constraint[1] == 1:
-                elif constraint[1] == 1:
                     plane_mask.append(True)
                     plane_mask.append(False)
                     plane_mask.append(True)
-                elif constraint[2] == 1:
                 elif constraint[2] == 1:
                     plane_mask.append(True)
                     plane_mask.append(True)
@@ -356,16 +345,13 @@ class ParticleSystem:
                     plane_mask.append(True)
                 constraint = p._Particle__constraint[0]
                 if constraint[0] == 1:
-                if constraint[0] == 1:
                     line_mask.append(True)
                     line_mask.append(False)
                     line_mask.append(False)
                 elif constraint[1] == 1:
-                elif constraint[1] == 1:
                     line_mask.append(False)
                     line_mask.append(True)
                     line_mask.append(False)
-                elif constraint[2] == 1:
                 elif constraint[2] == 1:
                     line_mask.append(False)
                     line_mask.append(False)
@@ -394,30 +380,21 @@ class ParticleSystem:
         dv_filtered, _ = bicgstab(
             A, b, rtol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter
         )
-        dv_filtered, _ = bicgstab(
-            A, b, tol=self.__rtol, atol=self.__atol, maxiter=self.__maxiter
-        )
         dv[mask] = dv_filtered
 
         # numerical time integration following implicit Euler scheme
         v_next = v_current + dv
         if "adaptive_timestepping" in self.__params:
-        if "adaptive_timestepping" in self.__params:
             v_max = v_next.max()
-            if v_max != 0:
-                dt = min(self.__params["adaptive_timestepping"] / v_max, self.__dt)
             if v_max != 0:
                 dt = min(self.__params["adaptive_timestepping"] / v_max, self.__dt)
             else:
                 dt = self.__dt
             self.__history["dt"].append(dt)
-            self.__history["dt"].append(dt)
             x_next = x_current + dt * v_next
-            logging.debug(f"Adaptive timestepping triggered {dt=}")
             logging.debug(f"Adaptive timestepping triggered {dt=}")
         else:
             x_next = x_current + self.__dt * v_next
-            self.__history["dt"].append(self.__dt)
             self.__history["dt"].append(self.__dt)
 
         # function returns the pos. and vel. for the next timestep, but for fixed particles this value doesn't update!
@@ -425,25 +402,19 @@ class ParticleSystem:
 
         # Recording data about the timestep:
         self.__history["E_kin"].append(self.__calc_kin_energy())
-        self.__history["E_kin"].append(self.__calc_kin_energy())
 
         return x_next, v_next
 
     def kin_damp_sim(
         self, f_ext: npt.ArrayLike = (), q_correction: bool = False
     ):  # kinetic damping algorithm
-    def kin_damp_sim(
-        self, f_ext: npt.ArrayLike = (), q_correction: bool = False
-    ):  # kinetic damping algorithm
         # kwargs passed to self.simulate
-        if self.__vis_damp:  # Condition resetting viscous damping to 0
         if self.__vis_damp:  # Condition resetting viscous damping to 0
             for link in self.__springdampers:
                 link.c = 0
             self.__c = 0
             self.__vis_damp = False
 
-        if len(f_ext):  # condition checking if an f_ext is passed as argument
         if len(f_ext):  # condition checking if an f_ext is passed as argument
             self.__save_state()
             logging.debug(f"External force is applied")
@@ -457,9 +428,6 @@ class ParticleSystem:
 
         w_kin_new = self.__calc_kin_energy()
 
-        if (
-            w_kin_new > self.__w_kin
-        ):  # kin damping algorithm, takes effect when decrease in kin energy is detected
         if (
             w_kin_new > self.__w_kin
         ):  # kin damping algorithm, takes effect when decrease in kin energy is detected
@@ -478,12 +446,6 @@ class ParticleSystem:
                 q = (self.__w_kin - w_kin_new) / (
                     2 * self.__w_kin - self.__w_kin_min1 - w_kin_new
                 )
-            if (
-                q_correction
-            ):  # statement to check if q_correction is desired, standard is turned off
-                q = (self.__w_kin - w_kin_new) / (
-                    2 * self.__w_kin - self.__w_kin_min1 - w_kin_new
-                )
                 # print(q)
                 # print(self.__w_kin, w_kin_new)
                 # !!! Not sure if linear interpolation between states is the way to determine new x_next !!!
@@ -495,10 +457,6 @@ class ParticleSystem:
                     x_next = self.__x_min1 + ((q - 0.5) / 0.5) * (
                         x_next - self.__x_min1
                     )
-                    x_next = self.__x_min1 + ((q - 0.5) / 0.5) * (
-                        x_next - self.__x_min1
-                    )
-
                 # Can also use this q factor to recalculate the state for certain timestep h
 
             self.__update_x_v(x_next, v_next)
@@ -568,17 +526,25 @@ class ParticleSystem:
 
         return self.__f
 
-    @jax.jit
+    # # @jax.jit
+    # def force_calculation(self):
+    #     def single_force(self, idx):
+    #         f_int = self.__springdampers[idx].force_value()
+    #         i, j, *_ = self.__connectivity_matrix[idx]
+    #         self.__f[i * 3 : i * 3 + 3] += f_int
+    #         self.__f[j * 3 : j * 3 + 3] -= f_int
+    #         return self.__f
+
+    #     return jax.vmap(single_force)(np.arange(len(self.__springdampers)))
+
     def force_calculation(self):
-        def single_force(self, idx):
+        # Loop over all spring-dampers.
+        for idx in range(len(self.__springdampers)):
             f_int = self.__springdampers[idx].force_value()
             i, j, *_ = self.__connectivity_matrix[idx]
-
             self.__f[i * 3 : i * 3 + 3] += f_int
             self.__f[j * 3 : j * 3 + 3] -= f_int
-            return self.__f
-
-        return jax.vmap(single_force)(np.arange(len(self.__springdampers)))
+        return self.__f
 
     # def __system_jacobians(self):
     #     self.__jx[self.__jx != 0] = 0
@@ -697,9 +663,6 @@ class ParticleSystem:
     def particles(
         self,
     ):  # @property decorators required, as PS info might be required for external calcs
-    def particles(
-        self,
-    ):  # @property decorators required, as PS info might be required for external calcs
         return self.__particles
 
     @property
@@ -734,11 +697,7 @@ class ParticleSystem:
         for i in range(
             len(self.__particles)
         ):  # need to exclude fixed particles for force-based convergence
-        for i in range(
-            len(self.__particles)
-        ):  # need to exclude fixed particles for force-based convergence
             if self.__particles[i].fixed:
-                f_int[i * 3 : (i + 1) * 3] = 0
                 f_int[i * 3 : (i + 1) * 3] = 0
 
         return f_int
@@ -769,8 +728,6 @@ class ParticleSystem:
     def n(self):
         return self.__n
 
-    def plot(self, ax=None, colors=None):
-        """ "Plots current system configuration"""
     def plot(self, ax=None, colors=None):
         """ "Plots current system configuration"""
         if ax == None:
@@ -822,7 +779,6 @@ class ParticleSystem:
             segments.append(link.line_segment())
 
         if colors == "strain":
-        if colors == "strain":
             colors = []
             strains = np.array([(sd.l - sd.l0) / sd.l0 for sd in self.__springdampers])
             s_range = max(abs(strains.max()), abs(strains.min()))
@@ -838,8 +794,6 @@ class ParticleSystem:
                 elif strain_i < 0:
                     colors.append((strain_i / s_range, 0, 0, 1))
                 else:
-                    colors.append((0, 0, 0, 1))
-        elif colors == "forces":
                     colors.append((0, 0, 0, 1))
         elif colors == "forces":
             colors = []
@@ -861,9 +815,7 @@ class ParticleSystem:
                     colors.append((0, 0, 0, 1))
         else:
             colors = "black"
-            colors = "black"
 
-        lc = Line3DCollection(segments, colors=colors, linewidths=0.5)
         lc = Line3DCollection(segments, colors=colors, linewidths=0.5)
         ax.add_collection3d(lc)
         ax.set_xlabel("x")
@@ -878,10 +830,8 @@ class ParticleSystem:
         return ax
 
     def plot_forces(self, forces, ax=None, length=5):
-    def plot_forces(self, forces, ax=None, length=5):
         if ax == None:
             fig = plt.figure()
-            ax = fig.add_subplot(projection="3d")
             ax = fig.add_subplot(projection="3d")
 
         ax = self.plot(ax)
@@ -911,7 +861,6 @@ class ParticleSystem:
         return ax
 
     def initialize_find_surface(self, projection_plane: str = "z"):
-    def initialize_find_surface(self, projection_plane: str = "z"):
         """
         performs triangulation and sets up conversion matrix for surface calc
 
@@ -938,34 +887,24 @@ class ParticleSystem:
         # Gathering points of nodes
         points = self.__pack_x_current()
         points = points.reshape((int(len(points) / 3), 3))
-        points = points.reshape((int(len(points) / 3), 3))
 
         # Checking projection plane
         if projection_plane == "x":
-        if projection_plane == "x":
             projection_plane = 0
         elif projection_plane == "y":
-        elif projection_plane == "y":
             projection_plane = 1
-        elif projection_plane == "z":
         elif projection_plane == "z":
             projection_plane = 2
         else:
             raise AttributeError(
                 "projection_plane improperly defined; Must be x, y or z."
             )
-            raise AttributeError(
-                "projection_plane improperly defined; Must be x, y or z."
-            )
 
         # Performing triangulation
-        points_projected = points[:, :projection_plane]  # Projecting onto x-y plane
         points_projected = points[:, :projection_plane]  # Projecting onto x-y plane
         tri = Delaunay(points_projected)
 
         # Finding areas of each triangle
-        v1 = points[tri.simplices[:, 0]] - points[tri.simplices[:, 1]]
-        v2 = points[tri.simplices[:, 0]] - points[tri.simplices[:, 2]]
         v1 = points[tri.simplices[:, 0]] - points[tri.simplices[:, 1]]
         v2 = points[tri.simplices[:, 0]] - points[tri.simplices[:, 2]]
 
@@ -977,20 +916,15 @@ class ParticleSystem:
         v1_length = np.linalg.norm(v1, axis=1)
         v2_length = np.linalg.norm(v2, axis=1)
         v3_length = np.linalg.norm(v2 - v1, axis=1)
-        v3_length = np.linalg.norm(v2 - v1, axis=1)
 
-        angle_1 = np.arccos(np.sum(v1 * v2, axis=1) / (v1_length * v2_length))
         angle_1 = np.arccos(np.sum(v1 * v2, axis=1) / (v1_length * v2_length))
 
         # Next bit is a fix for an error due to limited numerical accuracy
         inp = v2_length / v3_length * np.sin(angle_1)
         inp[inp > 1] = 1
-        inp = v2_length / v3_length * np.sin(angle_1)
-        inp[inp > 1] = 1
         angle_2 = np.arcsin(inp)
         angle_3 = np.pi - angle_1 - angle_2
 
-        angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten() / np.pi
         angle_iterator = np.column_stack((angle_1, angle_2, angle_3)).flatten() / np.pi
 
         # Sparse matrix construction
@@ -1000,12 +934,6 @@ class ParticleSystem:
         for j, indices in enumerate(tri.simplices):
             for k, i in enumerate(indices):
                 for l in range(3):
-                    rows.append(3 * i + l)
-                    cols.append(3 * j + l)
-                    data.append(angle_iterator[3 * j + k])
-        conversion_matrix = sps.csr_matrix(
-            (data, (rows, cols)), shape=(self.__n * 3, len(tri.simplices) * 3)
-        )
                     rows.append(3 * i + l)
                     cols.append(3 * j + l)
                     data.append(angle_iterator[3 * j + k])
@@ -1025,7 +953,6 @@ class ParticleSystem:
 
         return tri.simplices, conversion_matrix
 
-    def find_surface(self, projection_plane: str = "z") -> np.ndarray:
     def find_surface(self, projection_plane: str = "z") -> np.ndarray:
         """
         finds the surface area vector for each node in the mesh
@@ -1047,11 +974,6 @@ class ParticleSystem:
             simplices, conversion_matrix = self.initialize_find_surface(
                 projection_plane
             )
-        if not hasattr(self, "_ParticleSystem__surface_conversion_matrix"):
-            logging.warning("find_surface called without prior initialization.")
-            simplices, conversion_matrix = self.initialize_find_surface(
-                projection_plane
-            )
             self.__simplices = simplices
             self.__surface_conversion_matrix = conversion_matrix
         else:
@@ -1062,16 +984,12 @@ class ParticleSystem:
         points = self.__pack_x_current()
         n = len(points)
         points = points.reshape((int(n / 3), 3))
-        points = points.reshape((int(n / 3), 3))
 
         # Finding areas of each triangle
         v1 = points[simplices[:, 0]] - points[simplices[:, 1]]
         v2 = points[simplices[:, 0]] - points[simplices[:, 2]]
-        v1 = points[simplices[:, 0]] - points[simplices[:, 1]]
-        v2 = points[simplices[:, 0]] - points[simplices[:, 2]]
 
         # Calculate the area of the triangulated simplices
-        area_vectors = np.cross(v1, v2) / 2
         area_vectors = np.cross(v1, v2) / 2
 
         # Convert these to correct particle area magnitudes
@@ -1080,17 +998,11 @@ class ParticleSystem:
         # for this by calculating them seperately and scaling the vector.
         simplice_area_magnitudes = np.linalg.norm(area_vectors, axis=1)
         logging.debug(f"{np.sum(simplice_area_magnitudes)=}")
-        logging.debug(f"{np.sum(simplice_area_magnitudes)=}")
 
         simplice_area_magnitudes_1d = np.outer(
             simplice_area_magnitudes, np.ones(3)
         ).flatten()
-        simplice_area_magnitudes_1d = np.outer(
-            simplice_area_magnitudes, np.ones(3)
-        ).flatten()
         particle_area_magnitudes_1d = conversion_matrix.dot(simplice_area_magnitudes_1d)
-        logging.debug(f"{np.sum(particle_area_magnitudes_1d)=}")
-        logging.debug(f"{np.sum(particle_area_magnitudes_1d[::3])=}")
         logging.debug(f"{np.sum(particle_area_magnitudes_1d)=}")
         logging.debug(f"{np.sum(particle_area_magnitudes_1d[::3])=}")
 
@@ -1098,32 +1010,22 @@ class ParticleSystem:
         input_vector = area_vectors.flatten()
         area_vectors_1d_direction = conversion_matrix.dot(input_vector)
         area_vectors_redistributed = area_vectors_1d_direction.reshape((int(n / 3), 3))
-        area_vectors_redistributed = area_vectors_1d_direction.reshape((int(n / 3), 3))
 
         # Scaling the vectors
         direction_magnitudes = np.linalg.norm(area_vectors_redistributed, axis=1)
         logging.debug(f"{np.sum(direction_magnitudes)=}")
-        direction_magnitudes = np.linalg.norm(area_vectors_redistributed, axis=1)
-        logging.debug(f"{np.sum(direction_magnitudes)=}")
 
-        scaling_factor = particle_area_magnitudes_1d[::3] / direction_magnitudes
-        logging.debug(f"{scaling_factor=}")
         scaling_factor = particle_area_magnitudes_1d[::3] / direction_magnitudes
         logging.debug(f"{scaling_factor=}")
 
         area_vectors_redistributed *= np.outer(scaling_factor, np.ones(3))
-        area_vectors_redistributed *= np.outer(scaling_factor, np.ones(3))
 
-        logging.debug(
-            f"After scaling {np.sum(np.linalg.norm(area_vectors_redistributed, axis=1))=}"
-        )
         logging.debug(
             f"After scaling {np.sum(np.linalg.norm(area_vectors_redistributed, axis=1))=}"
         )
 
         return area_vectors_redistributed
 
-    def plot_triangulated_surface(self, ax=None, arrow_length=1, plot_points=True):
     def plot_triangulated_surface(self, ax=None, arrow_length=1, plot_points=True):
         """
         plots triangulated surface for user inspection
@@ -1134,13 +1036,8 @@ class ParticleSystem:
         points = self.__pack_x_current()
         points = points.reshape((int(len(points) / 3), 3))
         x, y, z = points[:, 0], points[:, 1], points[:, 2]
-        points = points.reshape((int(len(points) / 3), 3))
-        x, y, z = points[:, 0], points[:, 1], points[:, 2]
 
         area_vectors = self.find_surface()
-        a_u = area_vectors[:, 0]
-        a_v = area_vectors[:, 1]
-        a_w = area_vectors[:, 2]
         a_u = area_vectors[:, 0]
         a_v = area_vectors[:, 1]
         a_w = area_vectors[:, 2]
@@ -1148,15 +1045,11 @@ class ParticleSystem:
         if ax == None:
             fig = plt.figure()
             ax = fig.add_subplot(projection="3d")
-            ax = fig.add_subplot(projection="3d")
         ax.plot_trisurf(x, y, z, triangles=self.__simplices, cmap=plt.cm.Spectral)
         if plot_points:
             ax.scatter(x, y, z)
-            ax.scatter(x, y, z)
         if arrow_length:
             ax.quiver(x, y, z, a_u, a_v, a_w, length=arrow_length)
-            ax.quiver(x, y, z, a_u, a_v, a_w, length=arrow_length)
-
         return ax
 
     def calculate_correct_masses(self, thickness, density):
@@ -1173,11 +1066,7 @@ class ParticleSystem:
         masses = np.array([p.m for p in self.particles])
         total_mass = np.sum(masses)
         weighing_vector = masses / total_mass
-        weighing_vector = masses / total_mass
         for i in range(3):
-            locations[:, i] *= weighing_vector
-        COM = np.sum(locations, axis=0)
-        return COM + self.COM_offset
             locations[:, i] *= weighing_vector
         COM = np.sum(locations, axis=0)
         return COM + self.COM_offset
@@ -1203,19 +1092,17 @@ class ParticleSystem:
         )
 
         return r2.T * masses[:, np.newaxis]
-        return r2.T * masses[:, np.newaxis]
 
-    def displace(self, displacement: list, suppress_warnings=False):
     def displace(self, displacement: list, suppress_warnings=False):
         """
         displaces the associated particle system with the prescribed amount
         around the center of mass.
 
-        Arguments
+        Parameters
         ----------
         displacement_range : list
             list of length 6 representing the displacement magnitudes to
-            perform the stability test. First three values represent lateral
+            perform the displacement. First three values represent lateral
             displacement in meters. Next three values represent
             tilt angle around the centre of mass in degrees.
         suppress_warnings : bool
@@ -1226,48 +1113,31 @@ class ParticleSystem:
                 "Expected list of 6 arguments representing "
                 f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead"
             )
-            raise AttributeError(
-                "Expected list of 6 arguments representing "
-                f"x,y,z,rx,ry,rz, got list of length {len(displacement)} instead"
-            )
 
-        if hasattr(self, "current_displacement"):
-            if (
-                type(self.current_displacement) != type(None)
         if hasattr(self, "current_displacement"):
             if (
                 type(self.current_displacement) != type(None)
                 and not suppress_warnings
                 and not np.all(self.current_displacement == -np.array(displacement))
             ):
-                and not np.all(self.current_displacement == -np.array(displacement))
-            ):
                 # I want to allow this behavior,
-                # but also inform user that by doing it this way they're breaking stuff
-                logging.warning(
-                    f"Particle system is already displaced: \
                 # but also inform user that by doing it this way they're breaking stuff
                 logging.warning(
                     f"Particle system is already displaced: \
 {self.current_displacement=}; displace called multiple times without\
  un-displacing. un-displacing is now broken."
                 )
- un-displacing. un-displacing is now broken."
-                )
             elif type(self.current_displacement) != type(None):
                 self.current_displacement += np.array(displacement)
             else:
                 self.current_displacement = np.array(displacement, dtype=float)
-                self.current_displacement = np.array(displacement, dtype=float)
         else:
-            self.current_displacement = np.array(displacement, dtype=float)
             self.current_displacement = np.array(displacement, dtype=float)
 
         qx, qy, qz, *_ = displacement
         locations, _ = self.x_v_current_3D
 
         # To apply rotations around COM we need to place it at the origin first
-        COM = self.calculate_center_of_mass()
         COM = self.calculate_center_of_mass()
         self.translate_mesh(locations, -COM)
 
@@ -1283,11 +1153,10 @@ class ParticleSystem:
 
     def un_displace(self):
         """
-        Reverses current mesh displacement of the associated particle system.
+        Reverses current displacement of the ParticleSystem using stored value.
 
         """
 
-        if not hasattr(self, "current_displacement"):
         if not hasattr(self, "current_displacement"):
             raise AttributeError("Particle System is not currently displaced")
 
@@ -1302,13 +1171,9 @@ class ParticleSystem:
 
         # To apply rotations around COM we need to place it at the origin first
         COM = self.calculate_center_of_mass()
-        COM = self.calculate_center_of_mass()
         self.translate_mesh(locations, -COM)
 
         # Extra syntax is to apply rotations in reverse order
-        new_locations = self.rotate_mesh(
-            locations, reverse_displacement[3:][::-1], order="xyz"
-        )
         new_locations = self.rotate_mesh(
             locations, reverse_displacement[3:][::-1], order="xyz"
         )
@@ -1345,13 +1210,9 @@ class ParticleSystem:
         mesh[:, 0] += qx
         mesh[:, 1] += qy
         mesh[:, 2] += qz
-        mesh[:, 0] += qx
-        mesh[:, 1] += qy
-        mesh[:, 2] += qz
 
         return mesh
 
-    def rotate_mesh(self, mesh: npt.ArrayLike, rotations: list, order="xyz"):
     def rotate_mesh(self, mesh: npt.ArrayLike, rotations: list, order="xyz"):
         """
         Rotates mesh locations
@@ -1397,14 +1258,7 @@ if __name__ == "__main__":
         "max_iter": int(1e5),  # [-] maximum number of iterations
         # physical parameters
         "g": 9.81,  # [m/s^2] gravitational acceleration
-        "g": 9.81,  # [m/s^2] gravitational acceleration
     }
-    c_matrix = [[0, 1, params["k"], params["c"]], [1, 2, params["k"], params["c"]]]
-    init_cond = [
-        [[0, 0, 0], [0, 0, 0], 1, True],
-        [[1, 0, 0], [0, 0, 0], 1, False],
-        [[1, 1, 0], [0, 0, 0], 1, False],
-    ]
     c_matrix = [[0, 1, params["k"], params["c"]], [1, 2, params["k"], params["c"]]]
     init_cond = [
         [[0, 0, 0], [0, 0, 0], 1, True],

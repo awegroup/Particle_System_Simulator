@@ -14,25 +14,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "PSS"
 version = "0.1.0"
-<<<<<<< HEAD
 readme = "README.md"
 license = {file = "LICENSE"}
-=======
-dependencies = [
-"numpy",
-"pandas",
-"matplotlib",
-"scipy",
-"jax"
-]
 
->>>>>>> develop
 requires-python = ">=3.8"
 authors = [
-{name = "Mark Kalsbeek, Jelle Poland, Alexander Batchelor"},
+{name = "Jelle Poland, Mark Kalfsbeek, Alexander Batchelor"},
 ]
 maintainers = [
-{name = "Mark Kalsbeek, Jelle Poland"}
+{name = "Jelle Poland"}
 ]
 keywords = ["Membrane Analysis", "Particle Systems", "Lightsail", "Kite", "Tensile Structures"] # Add your desired keywords here
 
@@ -62,18 +52,10 @@ dev = [
 
 
 [project.urls]
-<<<<<<< HEAD
 Repository = "https://github.com/awegroup/Particle_System_Simulator"
-=======
-Repository = "https://github.com/Markk116/LightSailSim/tree/main"
->>>>>>> develop
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-<<<<<<< HEAD
 Particle_System_Simulator = ["**/*.csv"]
-=======
-LightSailSim = ["**/*.csv"]
->>>>>>> develop
