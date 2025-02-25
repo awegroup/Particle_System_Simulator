@@ -2,7 +2,9 @@
 Child Class 'Particle', for particle objects to be instantiated in ParticleSystem
 """
 from .SystemObject import SystemObject
-import numpy as np
+# import numpy as np
+import jax
+import jax.numpy as np
 import numpy.typing as npt
 
 
