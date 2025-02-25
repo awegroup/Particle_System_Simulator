@@ -101,6 +101,42 @@ params["c"] = 1
 for link in PS.springdampers:
     logging.debug(f"link: {link.linktype}")
 
+
+# %% Plotting the initial solution
+
+initial_positions = [
+    [particle.x, particle.v, particle.m, particle.fixed] for particle in PS.particles
+]
+
+# fig = plt.figure()
+# ax = fig.add_subplot(projection="3d")
+
+# for i, node in enumerate(initial_positions):
+#     # node structure: [x, v, m, fixed]
+#     # Use red for fixed nodes, blue for free nodes.
+#     if node[3]:
+#         ax.scatter(node[0][0], node[0][1], node[0][2], color="red", marker="o")
+#     else:
+#         ax.scatter(node[0][0], node[0][1], node[0][2], color="blue", marker="o")
+
+# # Plot the connectivity between nodes using the connectivity_matrix.
+# for connection in connectivity_matrix:
+#     line = np.column_stack(
+#         [initial_positions[connection[0]][0], initial_positions[connection[1]][0]]
+#     )
+#     ax.plot(line[0], line[1], line[2], color="black")
+
+# ax.legend(["Fixed nodes", "Forces", "Free nodes"])
+
+# # Compute the bounding box from initial positions and set the aspect ratio.
+# xyz = np.array([node[0] for node in initial_positions])
+# bb = [np.ptp(axis) for axis in xyz.T]
+# ax.set_box_aspect(bb)
+
+# plt.title("Initial state")
+# plt.show()
+
+
 # %% Running the simulation
 
 f_ext = sim_input["f_external"]
@@ -191,10 +227,10 @@ for i, node in enumerate(final_positions):
     if node[3]:
         ax.scatter(node[0][0], node[0][1], node[0][2], color="red", marker="o")
     else:
-        ax.scatter(node[0][0], node[0][1], node[0][2], color="blue", marker="o")
+        ax.scatter(node[0][0], node[0][1], node[0][2], color="red", marker="o")
 
     ax.quiver(
-        *node[0].tolist(), f_ext[3 * i], f_ext[3 * i + 1], f_ext[3 * i + 2], length=0.3
+        *node[0].tolist(), f_ext[3 * i], f_ext[3 * i + 1], f_ext[3 * i + 2], length=0.01
     )
 
 for connection in connectivity_matrix:
@@ -202,7 +238,7 @@ for connection in connectivity_matrix:
         [final_positions[connection[0]][0], final_positions[connection[1]][0]]
     )
 
-    ax.plot(line[0], line[1], line[2], color="black")
+    ax.plot(line[0], line[1], line[2], color="red")
 
 ax.legend(["Fixed nodes", "Forces", "Free nodes"])
 
@@ -212,4 +248,47 @@ bb = [np.ptp(i) for i in xyz.T]
 ax.set_box_aspect(bb)
 
 plt.title("Final state")
+plt.show()
+
+# %% Plotting Initial (black) and Final (red) States with Connectivity Lines
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="3d")
+
+# Plot initial state in black
+for particle in initial_positions:
+    pos = particle[0]  # particle.x is the position
+    ax.scatter(pos[0], pos[1], pos[2], color="black", marker="o", s=10)
+
+# Draw connectivity lines for initial positions (black)
+for connection in connectivity_matrix:
+    p1 = initial_positions[connection[0]][0]
+    p2 = initial_positions[connection[1]][0]
+    line = np.column_stack((p1, p2))
+    ax.plot(line[0], line[1], line[2], color="black")
+
+# Plot final state in red
+for particle in final_positions:
+    pos = particle[0]  # particle.x is the position
+    ax.scatter(pos[0], pos[1], pos[2], color="red", marker="o", s=10)
+
+# Draw connectivity lines for final positions (red)
+for connection in connectivity_matrix:
+    p1 = final_positions[connection[0]][0]
+    p2 = final_positions[connection[1]][0]
+    line = np.column_stack((p1, p2))
+    ax.plot(line[0], line[1], line[2], color="red")
+
+ax.set_title("Initial (black) and Final (red) States")
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+ax.set_zlabel("Z")
+
+# Combine positions from both states to set an appropriate aspect ratio.
+all_positions = np.array(
+    [p[0] for p in initial_positions] + [p[0] for p in final_positions]
+)
+bb = [np.ptp(axis) for axis in all_positions.T]
+ax.set_box_aspect(bb)
+
 plt.show()

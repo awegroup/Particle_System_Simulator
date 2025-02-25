@@ -32,14 +32,14 @@ classifiers = [
 ]
 
 dependencies = [
-"numpy",
-"pandas",
-"matplotlib",
-"scipy",
-"sympy",
-"ipykernel",
-"dill",
-"attrs",
+	"numpy",
+	"pandas",
+	"matplotlib",
+	"scipy",
+	"sympy",
+	"ipykernel",
+	"dill",
+	"attrs",
 ]
 
 [project.optional-dependencies]
