@@ -1,6 +1,7 @@
 """
 Script for verification of correct implementation spring force of SpringDamper object within ParticleSystem framework
 """
+
 import numpy as np
 import numpy.typing as npt
 import input_damping_force as input
@@ -9,12 +10,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.integrate import solve_ivp
 import sys
-from Msc_Alexander_Batchelor.src.particleSystem.ParticleSystem import ParticleSystem
-from Msc_Alexander_Batchelor.src.AnalysisModules.SystemEnergy import system_energy
+from PSS.particleSystem import ParticleSystem
+from PSS.AnalysisModules import system_energy
 
 
 def instantiate_ps():
-    return ParticleSystem(input.c_matrix, input.init_cond, input.elem_param, input.params)
+    return ParticleSystem(
+        input.c_matrix, input.init_cond, input.elem_param, input.params
+    )
 
 
 def exact_solution(t_vector: npt.ArrayLike):
@@ -22,11 +25,11 @@ def exact_solution(t_vector: npt.ArrayLike):
     c = input.params["c"]
     m = input.init_cond[1][-2]
     omega = np.sqrt(k / m)
-    gamma = c/m
-    zeta = c/(2 * omega)        # critical damping faction
+    gamma = c / m
+    zeta = c / (2 * omega)  # critical damping faction
 
     # Analytical solution depends on value of zeta
-    if zeta <1:
+    if zeta < 1:
         print("system is underdamped")
     elif zeta == 1:
         print("system is critically damped")
@@ -37,7 +40,7 @@ def exact_solution(t_vector: npt.ArrayLike):
     y0 = np.array([1, 0])
 
     def syst_of_diff_eq(t, y):
-        A = np.array([[0, 1], [-omega**2, -gamma]])
+        A = np.array([[0, 1], [-(omega**2), -gamma]])
         system = np.matmul(A, y)
         return system
 
@@ -54,15 +57,15 @@ def exact_solution(t_vector: npt.ArrayLike):
     #                                                     + c2 * np.exp(-t_vector * np.sqrt((c/2)**2 - omega**2))))
 
     # Estimated (expected) decay rate of implicit Euler scheme as a function of t
-    dt = input.params['dt']
-    decay = np.exp(-0.5 * omega ** 2 * dt * t_vector)
+    dt = input.params["dt"]
+    decay = np.exp(-0.5 * omega**2 * dt * t_vector)
 
     return ivp_solution, decay
 
 
 def s_energy(pos, vel, t_vector):
-    k = input.params['k']
-    c = input.params['c']
+    k = input.params["k"]
+    c = input.params["c"]
     dt = t_vector[1]
     m = input.init_cond[1][-2]
 
@@ -76,13 +79,13 @@ def s_energy(pos, vel, t_vector):
     ke = 0.5 * m * vel**2
 
     # Energy dissipated by friction
-    ed = pd.DataFrame(index=t_vector, columns={'ed': np.zeros(len(t_vector))})
+    ed = pd.DataFrame(index=t_vector, columns={"ed": np.zeros(len(t_vector))})
     ed.iloc[0] = 0
     for i in range(1, len(t_vector)):
-        ed.iloc[i] = c * dt * abs(vel.iloc[i]**2 - vel.iloc[i - 1]**2)
+        ed.iloc[i] = c * dt * abs(vel.iloc[i] ** 2 - vel.iloc[i - 1] ** 2)
 
     # Total system energy
-    total_energy = ep['x'] + ke['v'] - ed['ed']
+    total_energy = ep["x"] + ke["v"] - ed["ed"]
 
     # print("ep:", ep)
     # print("ke:", ke)
@@ -96,26 +99,38 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     # visualization of simulation and analytical results
 
     # time vector for simulation loop, data storage and plotting
-    dt = input.params['dt']
+    dt = input.params["dt"]
     t_steps = input.params["t_steps"]
-    t_vector = np.linspace(0,  t_steps * dt, t_steps+1)
+    t_vector = np.linspace(0, t_steps * dt, t_steps + 1)
 
     # DataFrames as storage method of choice
-    x = {"x": np.zeros(len(t_vector), )}
-    v = {"v": np.zeros(len(t_vector), )}
+    x = {
+        "x": np.zeros(
+            len(t_vector),
+        )
+    }
+    v = {
+        "v": np.zeros(
+            len(t_vector),
+        )
+    }
     position = pd.DataFrame(index=t_vector, columns=x)
     velocity = pd.DataFrame(index=t_vector, columns=v)
     position2 = pd.DataFrame(index=t_vector, columns=x)
     velocity2 = pd.DataFrame(index=t_vector, columns=v)
     position3 = pd.DataFrame(index=t_vector, columns=x)
     velocity3 = pd.DataFrame(index=t_vector, columns=v)
-    sys_en = pd.DataFrame(index=t_vector, columns={'SE': np.zeros(len(t_vector))})
+    sys_en = pd.DataFrame(index=t_vector, columns={"SE": np.zeros(len(t_vector))})
 
     # addition of (constant) external forces
-    f_ext = np.zeros(input.params['n'] * 3, )
+    f_ext = np.zeros(
+        input.params["n"] * 3,
+    )
 
     start_time = time.time()
-    for step in t_vector:          # propagating the simulation for each timestep and saving results
+    for (
+        step
+    ) in t_vector:  # propagating the simulation for each timestep and saving results
         if step == 0:
             x, v = psystem.x_v_current
             position.loc[step], velocity.loc[step] = x[-1], v[-1]
@@ -130,7 +145,9 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     stop_time = time.time()
 
     start_time2 = time.time()
-    for step in t_vector:  # propagating the simulation for each timestep and saving results
+    for (
+        step
+    ) in t_vector:  # propagating the simulation for each timestep and saving results
         if step == 0:
             x, v = psystem2.x_v_current
             position2.loc[step], velocity2.loc[step] = x[-1], v[-1]
@@ -145,7 +162,9 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     stop_time2 = time.time()
 
     start_time3 = time.time()
-    for step in t_vector:  # propagating the simulation for each timestep and saving results
+    for (
+        step
+    ) in t_vector:  # propagating the simulation for each timestep and saving results
         if step == 0:
             x, v = psystem3.x_v_current
             position3.loc[step], velocity3.loc[step] = x[-1], v[-1]
@@ -159,9 +178,9 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
             break
     stop_time3 = time.time()
 
-    print(f'PS classic: {(stop_time - start_time):.4f} s')
-    print(f'PS kinetic w/o q: {(stop_time2 - start_time2):.4f} s')
-    print(f'PS kinetic with q: {(stop_time3 - start_time3):.4f} s')
+    print(f"PS classic: {(stop_time - start_time):.4f} s")
+    print(f"PS kinetic w/o q: {(stop_time2 - start_time2):.4f} s")
+    print(f"PS kinetic with q: {(stop_time3 - start_time3):.4f} s")
 
     # t_vector = np.linspace(0, t_steps * dt, t_steps)
     # calculating system energy over time
@@ -171,10 +190,10 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
 
     # generating analytical solution for the same time vector
     start_time3 = time.time()
-    x_length = position['x'].count()
+    x_length = position["x"].count()
     exact, decay = exact_solution(t_vector[:x_length])
     stop_time3 = time.time()
-    print(f'IVP solved: {(stop_time3 - start_time3):.4f} s')
+    print(f"IVP solved: {(stop_time3 - start_time3):.4f} s")
     # correcting simulation for decay rate
     # corrected = np.divide(np.array(position["x"]), decay)
 
@@ -217,18 +236,26 @@ def plot(psystem: ParticleSystem, psystem2: ParticleSystem, psystem3: ParticleSy
     # plot including kinetic damped system
     plt.figure()
 
-    plt.plot(position, 'b', lw=3)
-    plt.plot(t_vector[:x_length], exact.y[0], 'g--')
-    plt.plot(t_vector, np.array(position2["x"]), 'r--')
-    plt.plot(t_vector, np.array(position3["x"]), 'orange', ls='--')
+    plt.plot(position, "b", lw=3)
+    plt.plot(t_vector[:x_length], exact.y[0], "g--")
+    plt.plot(t_vector, np.array(position2["x"]), "r--")
+    plt.plot(t_vector, np.array(position3["x"]), "orange", ls="--")
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
-    plt.title(f"Simulation of critically damped harmonic oscillator, without external loads. h = {input.params['dt']} s,"
-              f" k = {input.params['k']} N/m, c = {input.params['c']:.1f} N s/m")
+    plt.title(
+        f"Simulation of critically damped harmonic oscillator, without external loads. h = {input.params['dt']} s,"
+        f" k = {input.params['k']} N/m, c = {input.params['c']:.1f} N s/m"
+    )
     plt.grid()
 
-    plt.legend(["PS simulation", "Exact solution", "Kinetic damping w/o q-correction",
-                "Kinetic damping with q-correction"])
+    plt.legend(
+        [
+            "PS simulation",
+            "Exact solution",
+            "Kinetic damping w/o q-correction",
+            "Kinetic damping with q-correction",
+        ]
+    )
 
     plt.show()
     plt.show()
@@ -241,4 +268,3 @@ if __name__ == "__main__":
     ps3 = instantiate_ps()
 
     plot(ps, ps2, ps3)
-
