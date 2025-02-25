@@ -81,8 +81,6 @@ class ParticleSystem:
         self.__springdampers = []
         self.__f = np.zeros((self.__n * 3,), dtype="float64")
         self.__jx = np.zeros((self.__n * 3, self.__n * 3), dtype="float64")
-        self.__f = np.zeros((self.__n * 3,), dtype="float64")
-        self.__jx = np.zeros((self.__n * 3, self.__n * 3), dtype="float64")
         self.__jv = np.zeros((self.__n * 3, self.__n * 3))
 
         self.__instantiate_particles(initial_conditions)
@@ -99,18 +97,11 @@ class ParticleSystem:
         self.__x_min2 = np.zeros(
             self.__n,
         )
-        self.__x_min1 = np.zeros(
-            self.__n,
-        )
-        self.__x_min2 = np.zeros(
-            self.__n,
-        )
 
         # Variables that aid simulations
         self.COM_offset = np.zeros(3)
 
         # setup some recording
-        self.__history = {"dt": [], "E_kin": []}
         self.__history = {"dt": [], "E_kin": []}
 
         if init_surface:
@@ -122,11 +113,7 @@ class ParticleSystem:
         description += (
             "ParticleSystem object instantiated with attributes\nConnectivity matrix:"
         )
-        description += (
-            "ParticleSystem object instantiated with attributes\nConnectivity matrix:"
-        )
         description += str(self.__connectivity_matrix)
-        description += "\n\nInstantiated particles:\n"
         description += "\n\nInstantiated particles:\n"
         n = 1
         for particle in self.__particles:
@@ -150,7 +137,6 @@ class ParticleSystem:
 
     def __instantiate_springdampers(self):
         for link in self.__connectivity_matrix:
-            link = link.copy()  # needed to not override the __connectivity_matrix
             link = link.copy()  # needed to not override the __connectivity_matrix
             link[0] = self.__particles[link[0]]
             link[1] = self.__particles[link[1]]
@@ -177,10 +163,6 @@ class ParticleSystem:
         for i in remove_list[::-1]:
             del initial_conditions[i]
             for link in connectivity_matrix:
-                if link[0] > i:
-                    link[0] -= 1
-                if link[1] > i:
-                    link[1] -= 1
                 if link[0] > i:
                     link[0] -= 1
                 if link[1] > i:
@@ -215,10 +197,6 @@ class ParticleSystem:
     def extract_rest_length(self):
         return np.array([link.l0 for link in self.__springdampers])
 
-    def extract_rest_length(self):
-        """Extracts the rest lengths of the springdampers"""
-        return np.array([springdamper.l0 for springdamper in self.__springdampers])
-
     def __construct_m_matrix(self):
         matrix = np.zeros((self.__n * 3, self.__n * 3))
 
@@ -234,9 +212,6 @@ class ParticleSystem:
 
     def __calc_kin_energy(self):
         v = self.__pack_v_current()
-        w_kin = np.matmul(
-            np.matmul(v, self.__m_matrix), v.T
-        )  # Kinetic energy, 0.5 constant can be neglected
         w_kin = np.matmul(
             np.matmul(v, self.__m_matrix), v.T
         )  # Kinetic energy, 0.5 constant can be neglected
@@ -275,13 +250,6 @@ class ParticleSystem:
                 self.__n * 3,
             )
         logging.debug(f"current f_ext: {f_external}")
-        if not len(
-            f_external
-        ):  # check if external force is passed as argument, otherwise use 0 vector
-            f_external = np.zeros(
-                self.__n * 3,
-            )
-
         f = self.__one_d_force_vector() + f_external
         logging.debug(f"Current force (f_one_d + f_ext): {f}")
 
@@ -298,8 +266,6 @@ class ParticleSystem:
         # constructing A matrix and b vector for solver
         A = self.__m_matrix - self.__dt * jv - self.__dt**2 * jx
         b = self.__dt * f + self.__dt**2 * jx.dot(v_current)
-        A = self.__m_matrix - self.__dt * jv - self.__dt**2 * jx
-        b = self.__dt * f + self.__dt**2 * jx.dot(v_current)
 
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
@@ -307,7 +273,6 @@ class ParticleSystem:
         # A = sps.bsr_array(A)
 
         # --- START Prototype new constraint approach ---
-        point_mask = [not p.constraint_type == "point" for p in self.__particles]
         point_mask = [not p.constraint_type == "point" for p in self.__particles]
         plane_mask = []
         line_mask = []
@@ -366,7 +331,6 @@ class ParticleSystem:
                     plane_mask.append(True)
                     line_mask.append(True)
 
-        mask = np.outer(point_mask, [True, True, True]).flatten()
         mask = np.outer(point_mask, [True, True, True]).flatten()
         mask *= plane_mask
         mask *= line_mask
@@ -433,9 +397,6 @@ class ParticleSystem:
         ):  # kin damping algorithm, takes effect when decrease in kin energy is detected
             self.__update_w_kin(w_kin_new)
         else:
-            v_next = np.zeros(
-                self.__n * 3,
-            )
             v_next = np.zeros(
                 self.__n * 3,
             )
@@ -620,8 +581,6 @@ class ParticleSystem:
         for i in range(self.__n):
             self.__particles[i].update_pos(x_next[i * 3 : i * 3 + 3])
             self.__particles[i].update_vel(v_next[i * 3 : i * 3 + 3])
-            self.__particles[i].update_pos(x_next[i * 3 : i * 3 + 3])
-            self.__particles[i].update_vel(v_next[i * 3 : i * 3 + 3])
         return
 
     def __update_w_kin(self, w_kin_new: float):
@@ -632,11 +591,9 @@ class ParticleSystem:
     def update_pos_unsafe(self, x_new: npt.ArrayLike):
         for i, particle in enumerate(self.__particles):
             particle.update_pos_unsafe(x_new[3 * i : 3 * i + 3])
-            particle.update_pos_unsafe(x_new[3 * i : 3 * i + 3])
 
     def update_vel_unsafe(self, v_new: npt.ArrayLike):
         for i, particle in enumerate(self.__particles):
-            particle.update_vel_unsafe(v_new[3 * i : 3 * i + 3])
             particle.update_vel_unsafe(v_new[3 * i : 3 * i + 3])
 
     def __save_state(self):
@@ -646,10 +603,6 @@ class ParticleSystem:
 
     def find_reaction_forces(self):
         fixlist = [p.fixed for p in self.particles]
-        projections = [
-            p.constraint_projection_matrix for p in np.array(self.particles)[fixlist]
-        ]
-        forces = self.__f.reshape((self.__n, 3))
         projections = [
             p.constraint_projection_matrix for p in np.array(self.particles)[fixlist]
         ]
@@ -712,8 +665,6 @@ class ParticleSystem:
         v = self.__pack_v_current()
         x = np.reshape(x, (int(len(x) / 3), 3))
         v = np.reshape(v, (int(len(v) / 3), 3))
-        x = np.reshape(x, (int(len(x) / 3), 3))
-        v = np.reshape(v, (int(len(v) / 3), 3))
         return x, v
 
     @property
@@ -732,7 +683,6 @@ class ParticleSystem:
         """ "Plots current system configuration"""
         if ax == None:
             fig = plt.figure()
-            ax = fig.add_subplot(projection="3d")
             ax = fig.add_subplot(projection="3d")
 
         fixlist = []
@@ -759,19 +709,6 @@ class ParticleSystem:
                 marker="o",
                 s=5,
             )
-        if len(fixlist) > 0:
-            ax.scatter(
-                fixlist[:, 0], fixlist[:, 1], fixlist[:, 2], color="red", marker="o"
-            )
-        if len(freelist) > 0:
-            ax.scatter(
-                freelist[:, 0],
-                freelist[:, 1],
-                freelist[:, 2],
-                color="blue",
-                marker="o",
-                s=5,
-            )
 
         segments = []
 
@@ -782,13 +719,7 @@ class ParticleSystem:
             colors = []
             strains = np.array([(sd.l - sd.l0) / sd.l0 for sd in self.__springdampers])
             s_range = max(abs(strains.max()), abs(strains.min()))
-            strains = np.array([(sd.l - sd.l0) / sd.l0 for sd in self.__springdampers])
-            s_range = max(abs(strains.max()), abs(strains.min()))
             for strain_i in strains:
-                if strain_i > 0:
-                    colors.append((0, 0, strain_i / s_range, 1))
-                elif strain_i < 0:
-                    colors.append((strain_i / s_range, 0, 0, 1))
                 if strain_i > 0:
                     colors.append((0, 0, strain_i / s_range, 1))
                 elif strain_i < 0:
@@ -800,12 +731,7 @@ class ParticleSystem:
             forces = np.array([sd.force_value() for sd in self.__springdampers])
             forces = np.linalg.norm(forces, axis=1)
             s_range = max(abs(forces.max()), abs(forces.min()))
-            s_range = max(abs(forces.max()), abs(forces.min()))
             for force_i in forces:
-                if force_i > 0:
-                    colors.append((0, 0, force_i / s_range, 1))
-                elif force_i < 0:
-                    colors.append((force_i / s_range, 0, 0, 1))
                 if force_i > 0:
                     colors.append((0, 0, force_i / s_range, 1))
                 elif force_i < 0:
@@ -822,10 +748,6 @@ class ParticleSystem:
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         ax.set_aspect("equal")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.set_aspect("equal")
 
         return ax
 
@@ -836,18 +758,6 @@ class ParticleSystem:
 
         ax = self.plot(ax)
         x, _ = self.x_v_current_3D
-        x, _ = self.x_v_current_3D
-
-        ax.quiver(
-            x[:, 0],
-            x[:, 1],
-            x[:, 2],
-            forces[:, 0],
-            forces[:, 1],
-            forces[:, 2],
-            length=length,
-            label="Forces",
-        )
         ax.quiver(
             x[:, 0],
             x[:, 1],
@@ -1083,14 +993,6 @@ class ParticleSystem:
                 locations[:, 0] ** 2 + locations[:, 1] ** 2,
             ]
         )
-        r2 = np.vstack(
-            [
-                locations[:, 1] ** 2 + locations[:, 2] ** 2,
-                locations[:, 0] ** 2 + locations[:, 2] ** 2,
-                locations[:, 0] ** 2 + locations[:, 1] ** 2,
-            ]
-        )
-
         return r2.T * masses[:, np.newaxis]
 
     def displace(self, displacement: list, suppress_warnings=False):
@@ -1124,8 +1026,8 @@ class ParticleSystem:
                 # but also inform user that by doing it this way they're breaking stuff
                 logging.warning(
                     f"Particle system is already displaced: \
-{self.current_displacement=}; displace called multiple times without\
- un-displacing. un-displacing is now broken."
+                    {self.current_displacement=}; displace called multiple times without\
+                    un-displacing. un-displacing is now broken."
                 )
             elif type(self.current_displacement) != type(None):
                 self.current_displacement += np.array(displacement)
