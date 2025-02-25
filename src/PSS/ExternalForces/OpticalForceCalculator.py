@@ -15,24 +15,27 @@ import numpy.typing as npt
 import scipy as sp
 from scipy.constants import c
 from scipy.spatial.transform import Rotation
-from LightSailSim.particleSystem.Force import Force
+from PSS.particleSystem.Force import Force
 import logging
+
 
 class OpticalForceCalculator(Force):
     """
     Handles the calculation of forces arising from optical pressure
     """
+
     def __init__(self, ParticleSystem, LaserBeam):
         self.ParticleSystem = ParticleSystem
-        self.PS = self.ParticleSystem #alias for convenience
+        self.PS = self.ParticleSystem  # alias for convenience
         self.LaserBeam = LaserBeam
 
-        if not hasattr(self.ParticleSystem.particles[0],'optical_type'):
-            raise AttributeError("ParticleSystem does not have any optical properties set!")
+        if not hasattr(self.ParticleSystem.particles[0], "optical_type"):
+            raise AttributeError(
+                "ParticleSystem does not have any optical properties set!"
+            )
 
         super().__init__()
         return
-
 
     def __str__(self):
         print("OpticalForceCalculator object instantiated with attributes:")
@@ -57,38 +60,42 @@ class OpticalForceCalculator(Force):
         locations, _ = PS.x_v_current_3D
         forces = np.zeros(locations.shape)
 
-        if not hasattr(self, 'optical_type_mask'):
+        if not hasattr(self, "optical_type_mask"):
             self.create_optical_type_mask()
 
         # ! Note ! This bakes in implicitly that the orientation of the light
         # vector is in z+ direction
-        intensity_vectors = np.array([[0,0,LB.intensity_profile(x,y)] for x,y,z in locations])
-        polarisation_vectors = LB.polarization_map(locations[:,0],locations[:,1])
+        intensity_vectors = np.array(
+            [[0, 0, LB.intensity_profile(x, y)] for x, y, z in locations]
+        )
+        polarisation_vectors = LB.polarization_map(locations[:, 0], locations[:, 1])
 
         for optical_type in self.optical_type_mask.keys():
             if optical_type == ParticleOpticalPropertyType.SPECULAR:
                 mask = self.optical_type_mask[optical_type]
-                forces[mask] = self.calculate_specular_force(area_vectors[mask],
-                                                             intensity_vectors[mask])
+                forces[mask] = self.calculate_specular_force(
+                    area_vectors[mask], intensity_vectors[mask]
+                )
 
             elif optical_type == ParticleOpticalPropertyType.AXICONGRATING:
                 mask = self.optical_type_mask[optical_type]
                 filtered_particles = compress(PS.particles, mask)
                 axicon_angle = [p.axicon_angle for p in filtered_particles]
-                forces[mask] = self.calculate_axicongrating_force(area_vectors[mask],
-                                                                  intensity_vectors[mask],
-                                                                  axicon_angle)
+                forces[mask] = self.calculate_axicongrating_force(
+                    area_vectors[mask], intensity_vectors[mask], axicon_angle
+                )
 
             elif optical_type == ParticleOpticalPropertyType.ARBITRARY_PHC:
                 mask = self.optical_type_mask[optical_type]
-                if not hasattr(self, 'optical_interpolators'):
+                if not hasattr(self, "optical_interpolators"):
                     self.create_phc_map(mask)
 
-
-                forces[mask] = self.calculate_arbitrary_phc_force(area_vectors[mask],
-                                                                  intensity_vectors[mask],
-                                                                  polarisation_vectors[mask],
-                                                                  self.optical_interpolators)
+                forces[mask] = self.calculate_arbitrary_phc_force(
+                    area_vectors[mask],
+                    intensity_vectors[mask],
+                    polarisation_vectors[mask],
+                    self.optical_interpolators,
+                )
         return forces
 
     def create_phc_map(self, mask):
@@ -101,7 +108,7 @@ class OpticalForceCalculator(Force):
         self.phc_dict = defaultdict(list)
         for i, p in enumerate(filtered_particles):
             self.optical_interpolators.append(p.optical_interpolator)
-            #build dict of mask entries and which PhC they belong to.
+            # build dict of mask entries and which PhC they belong to.
             self.phc_dict[p.optical_interpolator].append(original_indices[i])
 
         for key in self.phc_dict.keys():
@@ -113,7 +120,6 @@ class OpticalForceCalculator(Force):
         for i in indice_list:
             submask[i] = True
         return submask
-
 
     def calculate_specular_force(self, area_vectors, intensity_vectors):
         """
@@ -134,8 +140,8 @@ class OpticalForceCalculator(Force):
             flattened array of external forces of length 3 * n_particles.
         """
         # First we compute the incident power on the particle areas
-        abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
-        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ poynting vector
+        abs_area_vectors = area_vectors[:, 2]  # assumes z+ poynting vector
+        abs_intensity_vectors = intensity_vectors[:, 2]  # assumes z+ poynting vector
         incident_power = abs_area_vectors * abs_intensity_vectors
 
         # To get the direction of the forces we need to normalise the area
@@ -144,14 +150,13 @@ class OpticalForceCalculator(Force):
         norms = np.linalg.norm(area_vectors, axis=1)
         forces = area_vectors.copy()
         for i in range(3):
-            forces[:,i] *= 2*incident_power / (c*norms)
+            forces[:, i] *= 2 * incident_power / (c * norms)
 
         return forces
 
-    def calculate_axicongrating_force(self,
-                                      area_vectors,
-                                      intensity_vectors,
-                                      axicon_angle):
+    def calculate_axicongrating_force(
+        self, area_vectors, intensity_vectors, axicon_angle
+    ):
         """
         Calculates forces for particles of optical type 'axicon grating'
 
@@ -175,26 +180,28 @@ class OpticalForceCalculator(Force):
 
         forces = self.calculate_specular_force(area_vectors, intensity_vectors)
         forces = rotation_super_matrix.dot(np.hstack(forces).T)
-        forces = np.reshape(forces, [int(forces.shape[0]/3),3])
+        forces = np.reshape(forces, [int(forces.shape[0] / 3), 3])
 
         # The forces need to be scaled to account for the fact that
         # |[1,1]| != |[1]|+|[1]|
         # We don't have acces to the angle, but we can make use of the cosine
         # rule: cos(alpha) = A.dot(B) / (|A| |B|) to get the angle between
         # z+ and the line of action of the force.
-        unit_z = np.array([0,0,1])
+        unit_z = np.array([0, 0, 1])
         scaling_factor = np.matmul(axicon_angle, unit_z).dot(unit_z)
 
         for i in range(3):
-            forces[:,i]*=scaling_factor
+            forces[:, i] *= scaling_factor
 
         return forces
 
-    def calculate_arbitrary_phc_force(self,
-                                              area_vectors,
-                                              intensity_vectors,
-                                              polarisation_vectors,
-                                              optical_interpolators):
+    def calculate_arbitrary_phc_force(
+        self,
+        area_vectors,
+        intensity_vectors,
+        polarisation_vectors,
+        optical_interpolators,
+    ):
         """
         Calculates forces for particles of optical type 'axicon grating'
 
@@ -223,16 +230,13 @@ class OpticalForceCalculator(Force):
         # azimuth_angles += np.pi
         # azimuth_angles %= 2*np.pi
 
-
         # Condition them for the interpolator:
-        wrapped_coordinates = wrap_spherical_coordinates(polar_angles,
-                                                         azimuth_angles,
-                                                         polarisation_angles)
+        wrapped_coordinates = wrap_spherical_coordinates(
+            polar_angles, azimuth_angles, polarisation_angles
+        )
         polar_angles, azimuth_angles, polarisation_angles = wrapped_coordinates
 
-        incoming_ray = np.vstack((polar_angles,
-                                  azimuth_angles,
-                                  polarisation_angles)).T
+        incoming_ray = np.vstack((polar_angles, azimuth_angles, polarisation_angles)).T
 
         # Find directions of outgoing rays
         # Interpolator([polar_in, azimuth_in, polarization_in])->[polar_out, azimuth_out, magnitude]
@@ -241,7 +245,6 @@ class OpticalForceCalculator(Force):
         for phc in self.phc_dict:
             submask = self.phc_dict[phc]
             reflected_ray[submask] = phc(incoming_ray[submask])
-
 
         # reflected_ray = [interp(incoming_ray[i])
         # reflected_ray = [interp(tuple(incoming_ray[i]))
@@ -252,19 +255,24 @@ class OpticalForceCalculator(Force):
         # Switch reference frame again; made easier becasue we are going to [0,0,1]
         polar_angles_out += polar_angles
 
-        reflected_vectors = spherical_to_cartesian(polar_angles_out,
-                                                   azimuth_angles_out,
-                                                   magnitudes)
+        reflected_vectors = spherical_to_cartesian(
+            polar_angles_out, azimuth_angles_out, magnitudes
+        )
 
         # Compute the incident power on the particle areas
-        abs_area_vectors = area_vectors[:,2] # assumes z+ poynting vector
-        abs_intensity_vectors = intensity_vectors[:,2] # assumes z+ poynting vector
+        abs_area_vectors = area_vectors[:, 2]  # assumes z+ poynting vector
+        abs_intensity_vectors = intensity_vectors[:, 2]  # assumes z+ poynting vector
         incident_power = abs_area_vectors * abs_intensity_vectors
 
-        scattered_power = reflected_vectors*incident_power[:,np.newaxis]
+        scattered_power = reflected_vectors * incident_power[:, np.newaxis]
 
-        net_power = np.hstack((np.zeros((incident_power.shape[0],2)),incident_power[:,np.newaxis])) + scattered_power
-        forces = net_power/c
+        net_power = (
+            np.hstack(
+                (np.zeros((incident_power.shape[0], 2)), incident_power[:, np.newaxis])
+            )
+            + scattered_power
+        )
+        forces = net_power / c
 
         return forces
 
@@ -284,26 +292,27 @@ class OpticalForceCalculator(Force):
         optical_type_list = []
         error_index_list = []
         for i, particle in enumerate(self.ParticleSystem.particles):
-            if hasattr(particle, 'optical_type'):
+            if hasattr(particle, "optical_type"):
                 optical_type_list.append(particle.optical_type)
             else:
                 error_index_list.append(i)
-        if len(error_index_list)>0:
-            raise AttributeError("All particles should have an optical type"
-                                 " set prior to calculation of optical forces."
-                                 " Currently the particles with indices"
-                                 f" {error_index_list} have no property set")
+        if len(error_index_list) > 0:
+            raise AttributeError(
+                "All particles should have an optical type"
+                " set prior to calculation of optical forces."
+                " Currently the particles with indices"
+                f" {error_index_list} have no property set"
+            )
         optical_type_list = np.array(optical_type_list)
 
         self.optical_type_mask = {}
 
         for optical_type in ParticleOpticalPropertyType:
             mask = optical_type_list == optical_type
-            if sum(mask)>0:
+            if sum(mask) > 0:
                 self.optical_type_mask[optical_type] = mask
 
-
-    def calculate_stability_coefficients(self, displacement_range = [0.1, 5]):
+    def calculate_stability_coefficients(self, displacement_range=[0.1, 5]):
         """
         Calculates the stability coefficients for the particle system
 
@@ -324,21 +333,24 @@ class OpticalForceCalculator(Force):
 
         """
         q, alpha = displacement_range
-        displacement_vectors = np.array([[q,0,0,0,0,0],
-                                         [0,q,0,0,0,0],
-                                         [0,0,q,0,0,0],
-                                         [0,0,0,alpha,0,0],
-                                         [0,0,0,0,alpha,0],
-                                         [0,0,0,0,0,alpha]])
+        displacement_vectors = np.array(
+            [
+                [q, 0, 0, 0, 0, 0],
+                [0, q, 0, 0, 0, 0],
+                [0, 0, q, 0, 0, 0],
+                [0, 0, 0, alpha, 0, 0],
+                [0, 0, 0, 0, alpha, 0],
+                [0, 0, 0, 0, 0, alpha],
+            ]
+        )
 
-        jacobian = np.zeros((6,6))
+        jacobian = np.zeros((6, 6))
         for i, vector in enumerate(displacement_vectors):
-            jacobian[:,i] =np.hstack(self.calculate_force_gradient(vector))
+            jacobian[:, i] = np.hstack(self.calculate_force_gradient(vector))
 
         return jacobian
 
-
-    def calculate_force_gradient(self, displacement_vector : npt.ArrayLike):
+    def calculate_force_gradient(self, displacement_vector: npt.ArrayLike):
         """
         Calculates force and moment coefficients of ParticleSystems based on a 1 DOF displacement
 
@@ -359,22 +371,23 @@ class OpticalForceCalculator(Force):
         k_rot : TYPE
             lenght 3 list of translational reaction coefficients [dM_x/dx__i, dM_y/dx__i, dM_z/dx__i]
         """
-        displacement =  displacement_vector[displacement_vector !=0]
-        if len(displacement)>1:
-            raise AttributeError("Expected vector with only one nonzero value,"
-                                 f"instead got {displacement_vector}")
+        displacement = displacement_vector[displacement_vector != 0]
+        if len(displacement) > 1:
+            raise AttributeError(
+                "Expected vector with only one nonzero value,"
+                f"instead got {displacement_vector}"
+            )
 
         original = self.calculate_restoring_forces()
         self.PS.displace(displacement_vector)
         reaction = self.calculate_restoring_forces()
         self.PS.un_displace()
 
-        k_trans = (reaction[0] - original[0])/displacement
-        k_rot = (reaction[1] - original[1])/displacement
+        k_trans = (reaction[0] - original[0]) / displacement
+        k_rot = (reaction[1] - original[1]) / displacement
         return k_trans, k_rot
 
-
-    def calculate_restoring_forces(self, forces : npt.ArrayLike= None):
+    def calculate_restoring_forces(self, forces: npt.ArrayLike = None):
         """
         calculates net forces and moments around the center of mass
 
@@ -395,15 +408,18 @@ class OpticalForceCalculator(Force):
         PS = self.ParticleSystem
         if type(forces) == type(None):
             forces = self.force_value()
-        net_force = np.sum(forces,axis=0)
+        net_force = np.sum(forces, axis=0)
 
-        COM =PS.calculate_center_of_mass()
+        COM = PS.calculate_center_of_mass()
         locations, _ = PS.x_v_current_3D
-        moment_arms = PS.translate_mesh(locations, -COM) # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
+        moment_arms = PS.translate_mesh(
+            locations, -COM
+        )  # note: this doesn't displace the PS, just applies a transformation on the 'locations' variable
         moments = np.cross(moment_arms, forces)
-        net_moments = np.sum(moments,axis=0)
+        net_moments = np.sum(moments, axis=0)
 
         return net_force, net_moments
+
 
 class ParticleOpticalPropertyType(Enum):
     """
@@ -429,11 +445,13 @@ class ParticleOpticalPropertyType(Enum):
     AXICONGRATING = "axicongrating"
     ARBITRARY_PHC = "ARBITRARY_PHC"
 
-vectorized_optical_type_retriever = np.vectorize(lambda  p: p.optical_type)
 
-def compute_spherical_coordinates(area_vectors: npt.NDArray,
-                                  polarisation_vectors: npt.NDArray) -> (
-                                      npt.NDArray, npt.NDArray, npt.NDArray):
+vectorized_optical_type_retriever = np.vectorize(lambda p: p.optical_type)
+
+
+def compute_spherical_coordinates(
+    area_vectors: npt.NDArray, polarisation_vectors: npt.NDArray
+) -> (npt.NDArray, npt.NDArray, npt.NDArray):
     """
     Computes the polar angles, azimuth angles, and polarisation angles of the incoming ray
     and its polarisation relative to the orientation of area elements represented by area vectors.
@@ -457,24 +475,25 @@ def compute_spherical_coordinates(area_vectors: npt.NDArray,
         orthogonal to the area vectors [rad].
     """
     # Normalize the area vectors
-    norm_area_vectors = area_vectors / np.linalg.norm(area_vectors, axis=1)[:, np.newaxis]
+    norm_area_vectors = (
+        area_vectors / np.linalg.norm(area_vectors, axis=1)[:, np.newaxis]
+    )
 
     # Compute polar angles using the dot product between area vectors and the z-axis
     polar_angles = np.arccos(norm_area_vectors[:, 2])
 
     # Compute azimuth angles
-    azimuth_angles = np.arctan2(norm_area_vectors[:,1], norm_area_vectors[:,0])
+    azimuth_angles = np.arctan2(norm_area_vectors[:, 1], norm_area_vectors[:, 0])
 
     # Compute the polarisation angle in cartesian space:
-    polarisation_angles = np.arccos(polarisation_vectors[:,0])
-
+    polarisation_angles = np.arccos(polarisation_vectors[:, 0])
 
     return polar_angles, azimuth_angles, polarisation_angles
 
 
-def spherical_to_cartesian(polar_angles: npt.NDArray,
-                           azimuth_angles: npt.NDArray,
-                           magnitudes: npt.NDArray) -> npt.NDArray:
+def spherical_to_cartesian(
+    polar_angles: npt.NDArray, azimuth_angles: npt.NDArray, magnitudes: npt.NDArray
+) -> npt.NDArray:
     """
     Converts spherical coordinates back to Cartesian coordinates in the global frame,
     using the area vectors to define the local reference frames. Scales the resulting vectors by the magnitudes.
@@ -501,11 +520,12 @@ def spherical_to_cartesian(polar_angles: npt.NDArray,
     y = magnitudes * np.sin(polar_angles) * np.sin(azimuth_angles)
     z = magnitudes * np.cos(polar_angles)
 
-    cartesian_vectors= np.vstack((x,y,z)).T
+    cartesian_vectors = np.vstack((x, y, z)).T
 
     return cartesian_vectors
 
-def cartesian_to_sphereical(vectors:npt.NDArray) -> npt.NDArray:
+
+def cartesian_to_sphereical(vectors: npt.NDArray) -> npt.NDArray:
     """
     Converts a set of vectors from cartesian to spherical coordinates
 
@@ -523,16 +543,16 @@ def cartesian_to_sphereical(vectors:npt.NDArray) -> npt.NDArray:
     magnitudes : npt.NDArray
         An array of magnitudes of the vectors.
     """
-    x,y,z = vectors[:,0], vectors[:,1], vectors[:,2]
+    x, y, z = vectors[:, 0], vectors[:, 1], vectors[:, 2]
     magnitudes = np.linalg.norm(vectors, axis=1)
-    polar_angles = np.arccos(z/magnitudes)
-    azimuth_angles = np.arctan2(y,x)
+    polar_angles = np.arccos(z / magnitudes)
+    azimuth_angles = np.arctan2(y, x)
     return polar_angles, azimuth_angles, magnitudes
 
-def wrap_spherical_coordinates(theta: npt.NDArray,
-                               phi: npt.NDArray,
-                               pol: npt.NDArray=None):
 
+def wrap_spherical_coordinates(
+    theta: npt.NDArray, phi: npt.NDArray, pol: npt.NDArray = None
+):
     """
     wraps points in spherical coordinates to always stay within the interpolators defined range
 
@@ -555,19 +575,19 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
     pol : npt.NDArray
         polarisation angle
     """
-    phi[theta>np.pi] += np.pi
-    theta[theta>np.pi]= np.pi - theta[theta>np.pi]%np.pi
+    phi[theta > np.pi] += np.pi
+    theta[theta > np.pi] = np.pi - theta[theta > np.pi] % np.pi
 
-    phi[theta<0] += np.pi
-    theta[theta<0] *=-1
-    phi %= 2*np.pi
+    phi[theta < 0] += np.pi
+    theta[theta < 0] *= -1
+    phi %= 2 * np.pi
 
-    phi[abs(phi-2*np.pi)<1e-5]=0 # wraps values that are _almost_ 2*np.pi
+    phi[abs(phi - 2 * np.pi) < 1e-5] = 0  # wraps values that are _almost_ 2*np.pi
 
     if np.any(pol != None):
         x = abs(np.cos(pol))
         y = abs(np.sin(pol))
-        pol = np.arctan(y/x)
+        pol = np.arctan(y / x)
 
         return theta, phi, pol
     else:
@@ -575,36 +595,42 @@ def wrap_spherical_coordinates(theta: npt.NDArray,
 
     # quick test
     # !!! todo move to testing file
-    theta = np.random.random(100)*3*np.pi - np.pi
-    phi = np.random.random(100)*3*np.pi - np.pi
-    pol = np.random.random(100)*3*np.pi - np.pi
+    theta = np.random.random(100) * 3 * np.pi - np.pi
+    phi = np.random.random(100) * 3 * np.pi - np.pi
+    pol = np.random.random(100) * 3 * np.pi - np.pi
+
     def test_wrap_spherical_coordinates(dat):
         mags = np.ones(dat[0].shape)
         t1 = spherical_to_cartesian(*wrap_spherical_coordinates(*dat)[:2], mags)
         t2 = spherical_to_cartesian(*dat[:2], mags)
-        return (t1==t2).all()
-    test_wrap_spherical_coordinates((theta,phi,pol))
+        return (t1 == t2).all()
+
+    test_wrap_spherical_coordinates((theta, phi, pol))
+
 
 if __name__ == "__main__":
     from code_Validation.saddle_form import saddle_form
-    from LightSailSim.ExternalForces.LaserBeam import LaserBeam
+    from PSS.ExternalForces.LaserBeam import LaserBeam
     import matplotlib.pyplot as plt
 
-
     PS = saddle_form.instantiate_ps()
-    #PS.stress_self()
-    #for i in range(10): PS.simulate()
+    # PS.stress_self()
+    # for i in range(10): PS.simulate()
     for particle in PS.particles:
-        particle.x[2]= 0
+        particle.x[2] = 0
 
-    I_0 = 100e9 /(10*10)
+    I_0 = 100e9 / (10 * 10)
     mu_x = 5
     mu_y = 5
     sigma = 5
-    LB = LaserBeam(lambda x, y: I_0 * np.exp(-1/2 *((x-mu_x)/sigma)**2
-                                             -1/2 *((y-mu_y)/sigma)**2),
-                   lambda x,y: [0,1])
-    LB = LaserBeam(lambda x, y: np.ones(x.shape)*I_0, lambda x,y: [0,1])
+    LB = LaserBeam(
+        lambda x, y: I_0
+        * np.exp(
+            -1 / 2 * ((x - mu_x) / sigma) ** 2 - 1 / 2 * ((y - mu_y) / sigma) ** 2
+        ),
+        lambda x, y: [0, 1],
+    )
+    LB = LaserBeam(lambda x, y: np.ones(x.shape) * I_0, lambda x, y: [0, 1])
 
     # One half of example will be 45 deg axicon angle directed towards (5,5)
     # other half will be specular reflection
@@ -613,40 +639,32 @@ if __name__ == "__main__":
     for particle in PS.particles:
         particle.optical_type = ParticleOpticalPropertyType.SPECULAR
 
-        if (particle.x[0]-5)**2 + (particle.x[1]-5)**2>= 3**2:
+        if (particle.x[0] - 5) ** 2 + (particle.x[1] - 5) ** 2 >= 3**2:
             roty = 45
-            rotz = np.rad2deg(np.arctan2((particle.x[1]-5), (particle.x[0]-4.999)))
+            rotz = np.rad2deg(np.arctan2((particle.x[1] - 5), (particle.x[0] - 4.999)))
             particle.optical_type = ParticleOpticalPropertyType.AXICONGRATING
-            #particle.axicon_angle = Rotation.from_euler('yz', [roty, rotz], degrees=True).as_matrix()
-            particle.axicon_angle = Rotation.from_euler('yz', [roty, rotz], degrees=True).as_matrix()
-            rots.append((roty,rotz%360))
+            # particle.axicon_angle = Rotation.from_euler('yz', [roty, rotz], degrees=True).as_matrix()
+            particle.axicon_angle = Rotation.from_euler(
+                "yz", [roty, rotz], degrees=True
+            ).as_matrix()
+            rots.append((roty, rotz % 360))
 
     OFC = OpticalForceCalculator(PS, LB)
 
     forces = OFC.force_value()
 
-
     ax = PS.plot()
 
     points, _ = PS.x_v_current_3D
-    x,y,z = points[:,0], points[:,1], points[:,2]
-    a_u = forces[:,0]
-    a_v = forces[:,1]
-    a_w = forces[:,2]
-    ax.scatter(x,y,z)
-    ax.quiver(x,y,z,a_u,a_v,a_w, length = 0.1)
-    ax.set_box_aspect([1,1,1])
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
+    a_u = forces[:, 0]
+    a_v = forces[:, 1]
+    a_w = forces[:, 2]
+    ax.scatter(x, y, z)
+    ax.quiver(x, y, z, a_u, a_v, a_w, length=0.1)
+    ax.set_box_aspect([1, 1, 1])
     ax.set_zlim(-5, 5)
-    #ax.set_zscale('symlog')
+    # ax.set_zscale('symlog')
 
-    #ax2 = fig.add_subplot(projection='3d')
-    #LB.plot(ax2, x_range = [0,10], y_range=[0,10])
-
-
-
-
-
-
-
-
-
+    # ax2 = fig.add_subplot(projection='3d')
+    # LB.plot(ax2, x_range = [0,10], y_range=[0,10])

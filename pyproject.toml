@@ -12,8 +12,12 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "LightSailSim"
+name = "PSS"
 version = "0.1.0"
+<<<<<<< HEAD
+readme = "README.md"
+license = {file = "LICENSE"}
+=======
 dependencies = [
 "numpy",
 "pandas",
@@ -22,27 +26,54 @@ dependencies = [
 "jax"
 ]
 
+>>>>>>> develop
 requires-python = ">=3.8"
 authors = [
-{name = "Mark Kalsbeek"},
+{name = "Mark Kalsbeek, Jelle Poland, Alexander Batchelor"},
 ]
 maintainers = [
-{name = "Mark Kalsbeek"}
+{name = "Mark Kalsbeek, Jelle Poland"}
 ]
-description = "LightSailSim"
-readme = "README.md"
-keywords = ["Membrane Analysis", "Lightsails"] # Add your desired keywords here
+keywords = ["Membrane Analysis", "Particle Systems", "Lightsail", "Kite", "Tensile Structures"] # Add your desired keywords here
+
 classifiers = [
 "Development Status :: 3 - Alpha",
 "Programming Language :: Python",
-"Intended Audience :: Lightsail Designers, Developers",
+"License :: OSI Approved :: MIT License",
 ]
 
+dependencies = [
+	"numpy",
+	"pandas",
+	"matplotlib",
+	"scipy",
+	"sympy",
+	"ipykernel",
+	"dill",
+	"attrs",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "black",
+  ]
+
+
 [project.urls]
+<<<<<<< HEAD
+Repository = "https://github.com/awegroup/Particle_System_Simulator"
+=======
 Repository = "https://github.com/Markk116/LightSailSim/tree/main"
+>>>>>>> develop
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
+<<<<<<< HEAD
+Particle_System_Simulator = ["**/*.csv"]
+=======
 LightSailSim = ["**/*.csv"]
+>>>>>>> develop
