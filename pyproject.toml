@@ -19,7 +19,9 @@ license = {file = "LICENSE"}
 
 requires-python = ">=3.8"
 authors = [
-{name = "Jelle Poland, Mark Kalfsbeek, Alexander Batchelor"},
+  {name = "Jelle Poland"},
+  {name = "Mark Kalfsbeek"},
+  {name = "Alexander Batchelor"}
 ]
 maintainers = [
 {name = "Jelle Poland"}
