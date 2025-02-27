@@ -1,7 +1,9 @@
-# Particle_System_Simulator: Design and Simulation Tool
+# Particle SystemSimulator
 [![Python package testing](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml)
 ![nicegif](images/SchmancyGauss.gif)
+
 This repository features tools for analyzing the deformation of line systems and membranes using a particle system model.
+It has been successfully used to model soft-wing kites and solar sails.
 
 
 ## Installation Instructions
