@@ -107,4 +107,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Copyright
 
-Copyright (c) 2025 Jelle Poland, Alexander Batchelor, Mark Kalfsbeek TU Delft
+Copyright (c) 2023 A. Batchelor
+Copyright (c) 2023 M. Kalsbeek
+Copyright (c) 2024 J.A.W. Poland
