@@ -9,12 +9,12 @@ It has been successfully used to model soft-wing kites and solar sails.
 ## Installation Instructions
 1. Clone the repository:
     ```bash
-    git clone https://github.com/ocayon/Vortex-Step-Method
+    git clone https://github.com/awegroup/Particle_System_Simulator
     ```
 
 2. Navigate to the repository folder:
     ```bash
-    cd Vortex-Step-Method
+    cd Particle_System_Simulator
     ```
     
 3. Create a virtual environment:
