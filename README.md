@@ -68,10 +68,10 @@ It has been successfully used to model soft-wing kites and solar sails.
 - attrs
 
 ## Usages
-Navigate to the Simulations directory and run the desired script:
+Navigate to the examples directory and run the desired script:
 ```bash
-cd Simulations
-python Simple_config_round.py
+cd examples
+python tutorial_1.py
 ```
 
 ## Contributing Guide
