@@ -104,9 +104,7 @@ Citation details can be found in the [CITATION.cff](CITATION.cff) file included 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-
-### Copyright
-
+## Copyright
 Copyright (c) 2023 A. Batchelor
 Copyright (c) 2023 M. Kalsbeek
 Copyright (c) 2024 J.A.W. Poland
