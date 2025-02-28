@@ -1,4 +1,4 @@
-# Particle SystemSimulator
+# Particle System Simulator
 [![Python package testing](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/awegroup/Particle_System_Simulator/actions/workflows/tests.yml)
 ![nicegif](images/SchmancyGauss.gif)
 
