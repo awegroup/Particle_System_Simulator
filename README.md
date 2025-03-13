@@ -102,8 +102,7 @@ If you use this project in your research, please consider citing it.
 Citation details can be found in the [CITATION.cff](CITATION.cff) file included in this repository.
 
 More details can be found in:
-- [Poland and Schmehl 2023: "Modelling Aero-Structural Deformation of Flexible Membrane Kites
-"](https://doi.org/10.3390/en16145264)
+- [Poland, J. A. W., & Schmehl, R. (2023). Modelling Aero-Structural Deformation of Flexible Membrane Kites. Energies, 16(14), 5264. https://doi.org/10.3390/en16145264](https://doi.org/10.3390/en16145264)
 - [MSc Thesis -by Alexander Batchelor- "Development and benchmarking of a Particle System framework for structural modeling of soft-wing kites"](https://resolver.tudelft.nl/uuid:42bd7d60-de62-4e11-ad73-5468144aaf59)
 
 ## License
