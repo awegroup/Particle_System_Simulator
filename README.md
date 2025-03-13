@@ -98,13 +98,19 @@ We welcome contributions to this project! Whether you're reporting a bug, sugges
 8. Once the pull request has been accepted, **close the issue**
 
 ## Citation
-If you use this project in your research, please consider citing it. 
+If you use this project in your research, please consider citing it.
 Citation details can be found in the [CITATION.cff](CITATION.cff) file included in this repository.
+
+More details can be found in:
+- (MSc Thesis: "Development and benchmarking of a Particle System framework for structural modeling of soft-wing kites" by Alexander Batchelor)[https://resolver.tudelft.nl/uuid:42bd7d60-de62-4e11-ad73-5468144aaf59]
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Copyright
+
 Copyright (c) 2023 A. Batchelor
+
 Copyright (c) 2023 M. Kalsbeek
+
 Copyright (c) 2024 J.A.W. Poland
