@@ -102,7 +102,9 @@ If you use this project in your research, please consider citing it.
 Citation details can be found in the [CITATION.cff](CITATION.cff) file included in this repository.
 
 More details can be found in:
-- (MSc Thesis: "Development and benchmarking of a Particle System framework for structural modeling of soft-wing kites" by Alexander Batchelor)[https://resolver.tudelft.nl/uuid:42bd7d60-de62-4e11-ad73-5468144aaf59]
+- [Poland and Schmehl 2023: "Modelling Aero-Structural Deformation of Flexible Membrane Kites
+"](https://doi.org/10.3390/en16145264)
+- [MSc Thesis: "Development and benchmarking of a Particle System framework for structural modeling of soft-wing kites" by Alexander Batchelor (MSc Thesis)](https://resolver.tudelft.nl/uuid:42bd7d60-de62-4e11-ad73-5468144aaf59)
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
