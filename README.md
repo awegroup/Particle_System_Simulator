@@ -108,7 +108,11 @@ More details can be found in:
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Copyright
+## WAIVER
+Technische Universiteit Delft hereby disclaims all copyright interest in the package written by the Author(s).
+Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
+
+### Copyright
 
 Copyright (c) 2023 A. Batchelor
 
