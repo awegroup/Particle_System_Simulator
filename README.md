@@ -114,8 +114,9 @@ Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
 
 ### Copyright
 
-Copyright (c) 2023 A. Batchelor
+Copyright (c) 2024 J.A.W. Poland
 
 Copyright (c) 2023 M. Kalsbeek
 
-Copyright (c) 2024 J.A.W. Poland
+Copyright (c) 2023 A. Batchelor
+
