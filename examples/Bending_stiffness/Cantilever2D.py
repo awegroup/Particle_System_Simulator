@@ -24,11 +24,11 @@ params = {
 
 
 
-P = 1 # [N] force applied at the end of the cantilever
-EI = 350 # [N*m^2] bending stiffness of the cantilever
+P = 5 # [N] force applied at the end of the cantilever
+EI = 400 # [N*m^2] bending stiffness of the cantilever
 k_cross = EI # [N/m] other spring stiffness
 
-L = 25 # [m] length of the cantilever
+L = 10 # [m] length of the cantilever
 L_side = 1 # [m] length of the square side
 
 
@@ -71,10 +71,12 @@ for i in range(params["n"]-1):
         connections.append([i,i-params["n_row"]+1,params["k_cross"], params["c"]])
 
 fig, ax = plt.subplots(figsize=(6,6))
-f_ext = np.empty((params["n"], 3))
+
+f_ext = np.zeros((params["n"], 3))
 f_ext[params["n_row"]-1] = [0, -P/2, 0]   # Apply a downward force on the last node
 f_ext[-1] = [0, -P/2, 0]  # Apply a downward force on the last node
 f_ext = f_ext.flatten()
+print(f_ext)
         
 # Plot the nodes
 for i, node in enumerate(initial_conditions):
