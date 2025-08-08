@@ -280,9 +280,6 @@ class ParticleSystem:
             if p.constraint_type == "plane":
                 for i in range(3):
                     line_mask.append(True)
-            if p.constraint_type == "plane":
-                for i in range(3):
-                    line_mask.append(True)
                 constraint = p._Particle__constraint[0]
                 if constraint[0] == 1:
                     plane_mask.append(False)
@@ -302,9 +299,6 @@ class ParticleSystem:
                     for i in range(3):
                         plane_mask.append(True)
 
-            elif p.constraint_type == "line":
-                for i in range(3):
-                    plane_mask.append(True)
             elif p.constraint_type == "line":
                 for i in range(3):
                     plane_mask.append(True)
