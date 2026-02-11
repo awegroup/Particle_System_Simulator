@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as shown below."
+title: "Particle System Simulator: Design and Simulation Tool"
+version: "1.0.0"
+date-released: "2025-02-27"
+keywords:
+  - Particle System Model
+  - Structural Model
+  - Soft-Wing Kites
+  - Lightsail Simulation
+license: MIT
+url: "https://github.com/awegroup/Particle_System_Simulator"
+authors:
+  - family-names: "Poland"
+    given-names: "Jelle Agatho Wilhelm"
+  - family-names: "Batchelor"
+    given-names: "Alexander"
+  - family-names: "Kalfsbeek"
+    given-names: "Mark"
+preferred-citation:
+  type: article
+  title: "Modelling Aero-Structural Deformation of Flexible Membrane Kites"
+  authors:
+    - family-names: "Poland"
+      given-names: "Jelle Agatho Wilhelm"
+    - family-names: "Schmehl"
+      given-names: "Roland"
+  journal: "Energies"
+  volume: "16"
+  article-number: "5264"
+  year: "2023"
+  doi: "10.3390/en16145264"
+  note: "Also consider citing Batchelor's Master's thesis (2023): 'Development and Benchmarking of a Particle System Framework for Structural Modeling of Soft-Wing Kites' (Delft University of Technology, http://resolver.tudelft.nl/uuid:42bd7d60-de62-4e11-ad73-5468144aaf59)."
