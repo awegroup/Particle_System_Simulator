@@ -65,21 +65,16 @@ class SpringDamper(ImplicitForce):
     ):
         """Initializes the spring damper
 
-
         Args:
-            p1, p2:
             p1, p2:
                 The two Particle instances to be connected
             k:
-            k:
                 A float representing the stiffness of the spring in N/m.
-            c:
             c:
                 A float representing the damping coefficient in Ns/m
             linktype:
                 A SpringDamperType enum representing the properties of the link
                 See SpringDamperType for more information
-
 
         """
         super().__init__(p1, p2)
@@ -90,12 +85,6 @@ class SpringDamper(ImplicitForce):
         return
 
     def __str__(self):
-        return (
-            f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.l0}\n"
-            f"Damping coefficient [N s/m]: {self.__c}\n"
-            f"Assigned particles\n  p1: {self.p1}\n  p2: {self.p2}\n"
-            f"Link type: {self.__linktype}"
-        )
         return (
             f"SpringDamper object, spring stiffness [n/m]: {self.__k}, rest length [m]: {self.l0}\n"
             f"Damping coefficient [N s/m]: {self.__c}\n"
@@ -223,6 +212,10 @@ class SpringDamper(ImplicitForce):
     @property
     def linktype(self):
         return self.__linktype
+
+    @k.setter
+    def k(self, value):
+        self.__k = value
 
 
 if __name__ == "__main__":

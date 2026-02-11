@@ -11,6 +11,9 @@ from PSS.particleSystem import ParticleSystem
 
 
 def instantiate_ps():
+    print(f"connections: {input.connections}")
+    print(f"initial conditions: {input.init_cond}")
+    print(f"params: {input.params}")
     return ParticleSystem(input.connections, input.init_cond, input.params)
 
 

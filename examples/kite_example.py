@@ -86,6 +86,26 @@ logging.debug(f"connectivity_matrix: {connectivity_matrix}")
 logging.debug(f"initial_conditions: {initial_conditions}")
 logging.debug(f"params: {params}")
 
+######
+# Changing Spring Stiffness
+######
+
+
+# First, convert the string spring types to the enum
+def string_to_springdampertype(link_type: str) -> SpringDamperType:
+    return SpringDamperType(link_type.lower())
+
+
+# Modify stiffness in the raw connectivity_matrix
+for conn in sim_input["connectivity_matrix"]:
+    conn[2] = 6.5e2
+
+# Now convert the full matrix with enums
+connectivity_matrix = [
+    [conn[0], conn[1], conn[2], conn[3], string_to_springdampertype(conn[4])]
+    for conn in sim_input["connectivity_matrix"]
+]
+
 ## Instating the PSM
 PS = ParticleSystem(
     connectivity_matrix,
@@ -139,12 +159,33 @@ initial_positions = [
 
 # %% Running the simulation
 
+
+## Changing the rest-length
+# first find rest length of depower tape, spring between node 21 and 22
+depower_tape = initial_positions[21][0] - initial_positions[22][0]
+rest_length = np.linalg.norm(depower_tape)
+print(f"rest_length: {rest_length}")
+desired_rest_length = 1.482
+desired_rest_length = 1.098
+delta_rest_length = desired_rest_length - rest_length
+# Check if the rest length was updated correctly
+for idx, link in enumerate(PS.springdampers):
+    if (link.p1 is PS.particles[21] and link.p2 is PS.particles[22]) or (
+        link.p1 is PS.particles[22] and link.p2 is PS.particles[21]
+    ):
+        print(f"Rest length: {link.l0}")
+        PS.update_rest_length(idx, delta_rest_length)
+        print(f"Updated rest length: {link.l0}")
+        break
+
+breakpoint()
+
 f_ext = sim_input["f_external"]
 
 t_vector = np.linspace(
-    params["dt"], params["t_steps"] * params["dt"], params["t_steps"]
+    params["dt"], params["t_steps"] * params["dt"], params["t_steps"] + 1
 )
-tol = 1e-10  # 1e-29
+tol = 1e-6  # 1e-29
 final_step = 0
 E_kin = []
 f_int = []
@@ -162,13 +203,17 @@ for step in t_vector:
     f_int.append(np.linalg.norm(PS.f_int))
 
     converged = False
+    t_value = 30
+    if step < (t_value + 0.05) and step > (t_value - 0.05):
+        for idx, link in enumerate(PS.springdampers):
+            PS.springdampers[idx].k += 5e3
     if step > 10:
         logging.debug(
             f"step: {step}, x: {x}, v: {v}, E_kin: {E_kin[-1]}, f_int: {f_int[-1]}"
         )
-
-        if np.max(E_kin[-10:-1]) <= tol:
+        if np.mean(E_kin[-10:-1]) <= tol:
             converged = True
+
     if converged and step > 1:
         print(f"Kinetic damping PS converged: {step}s")
         break

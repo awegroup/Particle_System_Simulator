@@ -5,8 +5,6 @@ ParticleSystem framework
 
 import logging
 
-import logging
-
 # import jax
 # import jax.numpy as np
 import numpy as np
@@ -204,10 +202,6 @@ class ParticleSystem:
             matrix[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += (
                 np.identity(3) * self.__particles[i].m
             )
-            matrix[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += (
-                np.identity(3) * self.__particles[i].m
-            )
-
         return matrix
 
     def __calc_kin_energy(self):
@@ -270,7 +264,6 @@ class ParticleSystem:
         # checking conditioning of A
         # print("conditioning A:", np.linalg.cond(A))
         # A = sps.bsr_array(A)
-        # A = sps.bsr_array(A)
 
         # --- START Prototype new constraint approach ---
         point_mask = [not p.constraint_type == "point" for p in self.__particles]
@@ -280,9 +273,6 @@ class ParticleSystem:
             if p.constraint_type == "plane":
                 for i in range(3):
                     line_mask.append(True)
-            if p.constraint_type == "plane":
-                for i in range(3):
-                    line_mask.append(True)
                 constraint = p._Particle__constraint[0]
                 if constraint[0] == 1:
                     plane_mask.append(False)
@@ -297,17 +287,12 @@ class ParticleSystem:
                     plane_mask.append(True)
                     plane_mask.append(False)
                 else:
-                    for i in range(3):
-                        plane_mask.append(True)
                     for i in range(3):
                         plane_mask.append(True)
 
             elif p.constraint_type == "line":
                 for i in range(3):
                     plane_mask.append(True)
-            elif p.constraint_type == "line":
-                for i in range(3):
-                    plane_mask.append(True)
                 constraint = p._Particle__constraint[0]
                 if constraint[0] == 1:
                     line_mask.append(True)
@@ -322,8 +307,6 @@ class ParticleSystem:
                     line_mask.append(False)
                     line_mask.append(True)
                 else:
-                    for i in range(3):
-                        line_mask.append(True)
                     for i in range(3):
                         line_mask.append(True)
             else:
@@ -335,7 +318,6 @@ class ParticleSystem:
         mask *= plane_mask
         mask *= line_mask
 
-        dv = np.zeros_like(b, dtype="float64")
         dv = np.zeros_like(b, dtype="float64")
         A = A[mask, :][:, mask]
         b = np.array(b)[mask]
@@ -478,12 +460,6 @@ class ParticleSystem:
             i, j, *_ = self.__connectivity_matrix[idx]
             self.__f[i * 3 : i * 3 + 3] += f_int
             self.__f[j * 3 : j * 3 + 3] -= f_int
-        for n in range(len(self.__springdampers)):
-            f_int = self.__springdampers[n].force_value()
-            i, j, *_ = self.__connectivity_matrix[n]
-
-            self.__f[i * 3 : i * 3 + 3] += f_int
-            self.__f[j * 3 : j * 3 + 3] -= f_int
 
         return self.__f
 
@@ -561,15 +537,7 @@ class ParticleSystem:
             self.__jx[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jx
             self.__jx[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jx
             self.__jx[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jx
-            self.__jx[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jx
-            self.__jx[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jx
-            self.__jx[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jx
-            self.__jx[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jx
 
-            self.__jv[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jv
-            self.__jv[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jv
-            self.__jv[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jv
-            self.__jv[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jv
             self.__jv[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jv
             self.__jv[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jv
             self.__jv[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jv
@@ -737,7 +705,6 @@ class ParticleSystem:
                 elif force_i < 0:
                     colors.append((force_i / s_range, 0, 0, 1))
                 else:
-                    colors.append((0, 0, 0, 1))
                     colors.append((0, 0, 0, 1))
         else:
             colors = "black"

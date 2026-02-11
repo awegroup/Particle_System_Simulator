@@ -5,7 +5,7 @@ Input file for validation of PS, benchmark case where form of self-stressed sadd
 import numpy as np
 
 # grid discretization
-grid_size = 5
+grid_size = 4
 grid_length = 10
 grid_height = 5
 
@@ -162,3 +162,7 @@ if __name__ == "__main__":
             )
         )
     )
+    print(f"\n\n\n\n")
+    print(f"connections: {connections}")
+    print(f"initial conditions: {init_cond}")
+    print(f"params: {params}")
