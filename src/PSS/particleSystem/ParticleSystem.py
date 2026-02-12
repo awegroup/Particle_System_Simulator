@@ -19,7 +19,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import copy
 
 from .Particle import Particle
-from .SpringDamper import SpringDamper
+from .SpringDamper import SpringDamper, SpringDamperType
 
 
 class ParticleSystem:
@@ -436,11 +436,8 @@ class ParticleSystem:
         x_current = self.__pack_x_current()
 
         for idx, link in enumerate(self.__springdampers):
-            link_type = (
-                link.linktype.value if hasattr(link.linktype, "value") else link.linktype
-            )
             # if pulley
-            if link_type == "pulley":
+            if link.linktype == SpringDamperType.PULLEY:
                 idx_p3, idx_p4, rest_length_p3p4 = self.__pulley_other_line_pair[
                     str(idx)
                 ]
@@ -457,7 +454,7 @@ class ParticleSystem:
             else:
                 f_int = np.array(link.force_value(), dtype=np.float64)
 
-            logging.debug(f"Force acting on {link_type} SD {idx}: {f_int}")
+            logging.debug(f"Force acting on {link.linktype} SD {idx}: {f_int}")
 
             # applying the forces to the particles
             i, j, *_ = self.__connectivity_matrix[idx]

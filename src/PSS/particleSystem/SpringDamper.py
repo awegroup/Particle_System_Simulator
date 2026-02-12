@@ -163,11 +163,17 @@ class SpringDamper(ImplicitForce):
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
 
-        # Using guard classes to return early in special cases
+        # Using guard clauses to return early in special cases
         if self.__linktype == SpringDamperType.NONCOMPRESSIVE and norm_pos <= self.__l0:
             return np.zeros((3, 3)), np.zeros((3, 3))
         elif self.__linktype == SpringDamperType.NONTENSILE and norm_pos >= self.__l0:
-            return np.zeros(3), np.zeros(3)
+            return np.zeros((3, 3)), np.zeros((3, 3))
+        elif self.__linktype == SpringDamperType.PULLEY:
+            # Pulley forces depend on positions of 4 nodes, but the standard
+            # 2-node Jacobian doesn't include the cross-coupling terms
+            # (df/dx_p3, df/dx_p4). Returning zeros makes pulley forces
+            # purely explicit, keeping f and Jx consistent.
+            return np.zeros((3, 3)), np.zeros((3, 3))
 
         if norm_pos != 0:
             unit_vector = relative_pos / norm_pos
