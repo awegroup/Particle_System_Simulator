@@ -529,19 +529,66 @@ class ParticleSystem:
         self.__jx[self.__jx != 0] = 0
         self.__jv[self.__jv != 0] = 0
 
+        x_current = self.__pack_x_current()
+
         for n in range(len(self.__springdampers)):
-            jx, jv = self.__springdampers[n].calculate_jacobian()
+            link = self.__springdampers[n]
             i, j, *_ = self.__connectivity_matrix[n]
 
-            self.__jx[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jx
-            self.__jx[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jx
-            self.__jx[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jx
-            self.__jx[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jx
+            if link.linktype == SpringDamperType.PULLEY:
+                # Compute other segment's extension (same as in __one_d_force_vector)
+                idx_p3, idx_p4, rest_length_p3p4 = self.__pulley_other_line_pair[str(n)]
+                i3, i4 = int(idx_p3), int(idx_p4)
 
-            self.__jv[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jv
-            self.__jv[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jv
-            self.__jv[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jv
-            self.__jv[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jv
+                r_other = (
+                    x_current[i3 * 3 : i3 * 3 + 3] - x_current[i4 * 3 : i4 * 3 + 3]
+                )
+                S = np.linalg.norm(r_other)
+                delta = S - rest_length_p3p4
+
+                # Local Jacobian with effective rest length
+                jx, jv = link.calculate_jacobian(delta)
+
+                # Standard 2-node assembly for local terms
+                self.__jx[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jx
+                self.__jx[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jx
+                self.__jx[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jx
+                self.__jx[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jx
+
+                # Cross-coupling: df/dx_{p3} and df/dx_{p4}
+                # df_i/dx_p3 = -k * outer(u_local, e_other)
+                # where u_local = (x_i - x_j)/L and e_other = (x_p3 - x_p4)/S
+                r_local = x_current[i * 3 : i * 3 + 3] - x_current[j * 3 : j * 3 + 3]
+                L = np.linalg.norm(r_local)
+
+                if L > 1e-12 and S > 1e-12:
+                    u_local = r_local / L
+                    e_other = r_other / S
+                    jx_cross = -link.k * np.outer(u_local, e_other)
+
+                    self.__jx[i * 3 : i * 3 + 3, i3 * 3 : i3 * 3 + 3] += jx_cross
+                    self.__jx[i * 3 : i * 3 + 3, i4 * 3 : i4 * 3 + 3] -= jx_cross
+                    self.__jx[j * 3 : j * 3 + 3, i3 * 3 : i3 * 3 + 3] -= jx_cross
+                    self.__jx[j * 3 : j * 3 + 3, i4 * 3 : i4 * 3 + 3] += jx_cross
+
+                # Damping: local only (no cross-coupling with other segment)
+                self.__jv[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jv
+                self.__jv[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jv
+                self.__jv[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jv
+                self.__jv[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jv
+
+            else:
+                jx, jv = link.calculate_jacobian()
+
+                self.__jx[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jx
+                self.__jx[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jx
+                self.__jx[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jx
+                self.__jx[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jx
+
+                self.__jv[i * 3 : i * 3 + 3, i * 3 : i * 3 + 3] += jv
+                self.__jv[j * 3 : j * 3 + 3, j * 3 : j * 3 + 3] += jv
+                self.__jv[i * 3 : i * 3 + 3, j * 3 : j * 3 + 3] -= jv
+                self.__jv[j * 3 : j * 3 + 3, i * 3 : i * 3 + 3] -= jv
 
         return self.__jx, self.__jv
 

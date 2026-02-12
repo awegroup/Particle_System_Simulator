@@ -74,20 +74,20 @@ def build_pulley_system():
         [6, 5, k_pulley, c_pulley, SpringDamperType.PULLEY],  # link 5  rope 3 seg B
     ]
 
-    # Compute initial segment lengths (SpringDamper sets l0 = initial distance)
-    pos = [np.array(ic[0]) for ic in initial_conditions]
-    segments = [(0, 4), (4, 1), (2, 5), (5, 3), (4, 6), (6, 5)]
-    rest = {i: np.linalg.norm(pos[a] - pos[b]) for i, (a, b) in enumerate(segments)}
+    # Match kite_fem input l0=3 for each pulley rope.
+    # Since each rope is split into two PULLEY links in PSS, each segment gets l0=1.5.
+    rope_l0 = 3.0
+    segment_l0 = rope_l0 / 2.0
 
     # Cross-coupling: each link watches the OTHER segment of its rope.
     # Format: "link_idx": [node_p3, node_p4, rest_length_p3p4]
     pulley_other_line_pair = {
-        "0": [4, 1, rest[1]],  # link 0 (0→4)  watches link 1 (4→1)
-        "1": [0, 4, rest[0]],  # link 1 (4→1)  watches link 0 (0→4)
-        "2": [5, 3, rest[3]],  # link 2 (2→5)  watches link 3 (5→3)
-        "3": [2, 5, rest[2]],  # link 3 (5→3)  watches link 2 (2→5)
-        "4": [6, 5, rest[5]],  # link 4 (4→6)  watches link 5 (6→5)
-        "5": [4, 6, rest[4]],  # link 5 (6→5)  watches link 4 (4→6)
+        "0": [4, 1, segment_l0],  # link 0 (0→4)  watches link 1 (4→1)
+        "1": [0, 4, segment_l0],  # link 1 (4→1)  watches link 0 (0→4)
+        "2": [5, 3, segment_l0],  # link 2 (2→5)  watches link 3 (5→3)
+        "3": [2, 5, segment_l0],  # link 3 (5→3)  watches link 2 (2→5)
+        "4": [6, 5, segment_l0],  # link 4 (4→6)  watches link 5 (6→5)
+        "5": [4, 6, segment_l0],  # link 5 (6→5)  watches link 4 (4→6)
     }
 
     params = {
@@ -100,6 +100,9 @@ def build_pulley_system():
     }
 
     ps = ParticleSystem(connectivity, initial_conditions, params, init_surface=False)
+    for link in ps.springdampers:
+        if link.linktype == SpringDamperType.PULLEY:
+            link.l0 = segment_l0
     return ps, connectivity, initial_conditions, params
 
 

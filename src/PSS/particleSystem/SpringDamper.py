@@ -159,7 +159,7 @@ class SpringDamper(ImplicitForce):
         elif self.__linktype == SpringDamperType.ROTATIONAL:
             raise NotImplementedError("Rotational SpringDamper not implemented yet")
 
-    def calculate_jacobian(self):
+    def calculate_jacobian(self, delta_length_pulley_other_line: float = 0):
         relative_pos = self.__relative_pos()
         norm_pos = np.linalg.norm(relative_pos)
 
@@ -169,11 +169,10 @@ class SpringDamper(ImplicitForce):
         elif self.__linktype == SpringDamperType.NONTENSILE and norm_pos >= self.__l0:
             return np.zeros((3, 3)), np.zeros((3, 3))
         elif self.__linktype == SpringDamperType.PULLEY:
-            # Pulley forces depend on positions of 4 nodes, but the standard
-            # 2-node Jacobian doesn't include the cross-coupling terms
-            # (df/dx_p3, df/dx_p4). Returning zeros makes pulley forces
-            # purely explicit, keeping f and Jx consistent.
-            return np.zeros((3, 3)), np.zeros((3, 3))
+            # Pulley is noncompressive based on total rope length
+            total_length = norm_pos + delta_length_pulley_other_line
+            if total_length < self.__l0:
+                return np.zeros((3, 3)), np.zeros((3, 3))
 
         if norm_pos != 0:
             unit_vector = relative_pos / norm_pos
@@ -181,9 +180,17 @@ class SpringDamper(ImplicitForce):
             norm_pos = 1
             unit_vector = np.array([0, 0, 0])
 
+        # For pulleys, use effective rest length: l0_eff = l0 - delta
+        # This accounts for the other segment's extension in the local Jacobian.
+        # Derivation: f = -k*(L - l0 + delta)*û = -k*(L - l0_eff)*û
+        if self.__linktype == SpringDamperType.PULLEY:
+            l0_eff = self.__l0 - delta_length_pulley_other_line
+        else:
+            l0_eff = self.__l0
+
         i = np.identity(3)
         T = np.matmul(np.transpose(unit_vector), unit_vector)
-        jx = -self.__k * ((self.l0 / norm_pos - 1) * (T - i) + T)
+        jx = -self.__k * ((l0_eff / norm_pos - 1) * (T - i) + T)
         jv = -self.__c * i
         return jx, jv
 
