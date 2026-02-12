@@ -178,7 +178,7 @@ for idx, link in enumerate(PS.springdampers):
         print(f"Updated rest length: {link.l0}")
         break
 
-breakpoint()
+# breakpoint()
 
 f_ext = sim_input["f_external"]
 
